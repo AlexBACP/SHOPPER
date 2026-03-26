@@ -1,0 +1,444 @@
+
+================================================================
+        SHOPPER — RESUMEN COMPLETO DEL PROYECTO
+        Plataforma Marketplace Multi-Vendedor
+================================================================
+
+================================================================
+  1. BACKEND — C:\SHOPPER\backend
+================================================================
+
+Stack: NestJS + TypeScript + PostgreSQL + MongoDB (sin ORM)
+Puerto: 3001
+
+
+----------------------------------------------------------------
+  DEPENDENCIAS DE PRODUCCIÓN (BACKEND)
+----------------------------------------------------------------
+
++------------------------+------------------------------------------+----------------------------------------------+
+| Paquete                | Para qué sirve                           | Comando de instalación                       |
++------------------------+------------------------------------------+----------------------------------------------+
+| @nestjs/jwt            | Genera y valida tokens JWT               | npm install @nestjs/jwt                      |
+| @nestjs/passport       | Integra estrategias de auth en NestJS    | npm install @nestjs/passport                 |
+| passport               | Base para manejar autenticación          | npm install passport                         |
+| passport-jwt           | Valida tokens JWT en cada request        | npm install passport-jwt                     |
+| passport-local         | Valida email + contraseña en login       | npm install passport-local                   |
+| bcrypt                 | Encripta contraseñas antes de guardar    | npm install bcrypt                           |
+| @nestjs/mapped-types   | Permite PartialType en los DTOs          | npm install @nestjs/mapped-types             |
+|                        |                                          | --legacy-peer-deps                           |
+| pg                     | Cliente PostgreSQL sin ORM               | npm install pg                               |
+| mongodb                | Cliente MongoDB sin ORM                  | npm install mongodb                          |
+| @nestjs/config         | Maneja variables de entorno (.env)       | npm install @nestjs/config                   |
++------------------------+------------------------------------------+----------------------------------------------+
+
+Instalación conjunta (producción):
+  npm install @nestjs/jwt @nestjs/passport passport passport-jwt passport-local bcrypt pg mongodb @nestjs/config
+  npm install @nestjs/mapped-types --legacy-peer-deps
+
+
+----------------------------------------------------------------
+  DEPENDENCIAS DE DESARROLLO (BACKEND)
+----------------------------------------------------------------
+
++---------------------------+-------------------------------------+------------------------------------------------+
+| Paquete                   | Para qué sirve                      | Comando de instalación                         |
++---------------------------+-------------------------------------+------------------------------------------------+
+| @types/bcrypt             | Tipos TypeScript para bcrypt        | npm install -D @types/bcrypt                   |
+| @types/passport-jwt       | Tipos TypeScript para passport-jwt  | npm install -D @types/passport-jwt             |
+| @types/passport-local     | Tipos TypeScript para passport-local| npm install -D @types/passport-local           |
++---------------------------+-------------------------------------+------------------------------------------------+
+
+Instalación conjunta (desarrollo):
+  npm install -D @types/bcrypt @types/passport-jwt @types/passport-local
+
+
+----------------------------------------------------------------
+  VARIABLES DE ENTORNO BACKEND (.env)
+----------------------------------------------------------------
+
+  # MongoDB
+  MONGODB_URI=mongodb://localhost:27017/SHOPPER_DB_CF
+
+  # PostgreSQL
+  POSTGRES_HOST=localhost
+  POSTGRES_PORT=5432
+  POSTGRES_USER=postgres
+  POSTGRES_PASSWORD=220*Alex
+  POSTGRES_DB=shopperdb
+
+  # App
+  NODE_ENV=development
+
+  # JWT
+  JWT_SECRET=un_secreto_largo_y_seguro
+  JWT_REFRESH_SECRET=otro_secreto_diferente_para_refresh
+
+
+================================================================
+  2. FRONTEND — C:\SHOPPER\frontend
+================================================================
+
+Stack: Next.js 15 + TypeScript + Tailwind CSS v4
+Puerto: 3000
+Diseño: "Dark Premium Marketplace"
+
+
+----------------------------------------------------------------
+  DEPENDENCIAS DE PRODUCCIÓN (FRONTEND)
+----------------------------------------------------------------
+
+⚠ IMPORTANTE: zod debe ser v3.23.8 y @hookform/resolvers v3.9.0
+  Las versiones más nuevas son incompatibles entre sí.
+
++-------------------------+------------------------------------------+-------------------------------------------------------+
+| Paquete                 | Para qué sirve                           | Comando de instalación                                |
++-------------------------+------------------------------------------+-------------------------------------------------------+
+| next                    | Framework React SSR/SSG                  | (incluido en create-next-app)                         |
+| react                   | Librería UI principal                    | (incluido en create-next-app)                         |
+| react-dom               | Renderizado React en el DOM              | (incluido en create-next-app)                         |
+| framer-motion           | Animaciones fluidas y transiciones       | npm install framer-motion                             |
+| lucide-react            | Iconos modernos y limpios                | npm install lucide-react                              |
+| recharts                | Gráficas para dashboards y analytics     | npm install recharts                                  |
+| @tanstack/react-query   | Fetching, caché y estados de carga       | npm install @tanstack/react-query                     |
+| sonner                  | Notificaciones toast elegantes           | npm install sonner                                    |
+| clsx                    | Une clases CSS condicionalmente          | npm install clsx                                      |
+| tailwind-merge          | Evita conflictos de clases Tailwind      | npm install tailwind-merge                            |
+| axios                   | Llamadas HTTP al backend NestJS          | npm install axios                                     |
+| zustand                 | Estado global (usuario, carrito)         | npm install zustand                                   |
+| react-hook-form         | Manejo eficiente de formularios          | npm install react-hook-form                           |
+| zod                     | Validación de esquemas (⚠ usar v3)       | npm install zod@3.23.8 --legacy-peer-deps             |
+| @hookform/resolvers     | Conecta zod con react-hook-form (⚠ v3)  | npm install @hookform/resolvers@3.9.0                 |
+|                         |                                          | --legacy-peer-deps                                    |
+| js-cookie               | Manejo de cookies (sesión anónima)       | npm install js-cookie                                 |
++-------------------------+------------------------------------------+-------------------------------------------------------+
+
+Instalación conjunta (producción):
+  npm install framer-motion lucide-react recharts @tanstack/react-query sonner clsx tailwind-merge axios zustand react-hook-form js-cookie
+  npm install zod@3.23.8 --legacy-peer-deps
+  npm install @hookform/resolvers@3.9.0 --legacy-peer-deps
+
+
+----------------------------------------------------------------
+  DEPENDENCIAS DE DESARROLLO (FRONTEND)
+----------------------------------------------------------------
+
++----------------------+----------------------------------------+----------------------------------------------+
+| Paquete              | Para qué sirve                         | Comando de instalación                       |
++----------------------+----------------------------------------+----------------------------------------------+
+| @types/js-cookie     | Tipos TypeScript para js-cookie        | npm install -D @types/js-cookie              |
+| @tailwindcss/postcss | Integración Tailwind con PostCSS       | (incluido en create-next-app)                |
+| typescript           | Tipado estático                        | (incluido en create-next-app)                |
+| eslint               | Linter de código                       | (incluido en create-next-app)                |
++----------------------+----------------------------------------+----------------------------------------------+
+
+Instalación conjunta (desarrollo):
+  npm install -D @types/js-cookie
+
+
+----------------------------------------------------------------
+  VARIABLES DE ENTORNO FRONTEND (.env.local)
+----------------------------------------------------------------
+
+  NEXT_PUBLIC_API_URL=http://localhost:3001
+
+
+================================================================
+  3. ESTRUCTURA COMPLETA DEL PROYECTO
+================================================================
+
+C:\SHOPPER\
+├── backend/
+│   ├── src/
+│   │   ├── database/
+│   │   │   ├── mongodb/
+│   │   │   │   ├── mongodb.module.ts       ← @Global(), exporta MONGO_CLIENT
+│   │   │   │   └── mongodb.provider.ts     ← conexión a MongoDB
+│   │   │   └── postgres/
+│   │   │       ├── postgres.module.ts      ← @Global(), exporta POSTGRES_POOL
+│   │   │       └── postgres.provider.ts    ← conexión a PostgreSQL
+│   │   ├── common/
+│   │   │   └── enums/
+│   │   │       └── role.enum.ts            ← super_admin, admin, owner, buyer
+│   │   ├── auth/
+│   │   │   ├── decorators/
+│   │   │   │   ├── roles.decorator.ts      ← @Roles(Role.ADMIN, ...)
+│   │   │   │   └── current-user.decorator.ts ← @CurrentUser()
+│   │   │   ├── guards/
+│   │   │   │   ├── jwt-auth.guard.ts       ← protege rutas con JWT
+│   │   │   │   ├── local-auth.guard.ts     ← valida email+password
+│   │   │   │   └── roles.guard.ts          ← controla acceso por rol
+│   │   │   ├── strategies/
+│   │   │   │   ├── jwt.strategy.ts         ← extrae user del token
+│   │   │   │   └── local.strategy.ts       ← valida credenciales
+│   │   │   ├── dto/
+│   │   │   │   ├── login.dto.ts
+│   │   │   │   └── register.dto.ts
+│   │   │   ├── auth.controller.ts          ← /auth/register, login, refresh, logout
+│   │   │   ├── auth.service.ts             ← lógica de auth + tokens
+│   │   │   └── auth.module.ts
+│   │   ├── users/
+│   │   │   ├── user.interface.ts           ← interface User
+│   │   │   ├── users.service.ts            ← queries a tabla users (PostgreSQL)
+│   │   │   └── users.module.ts
+│   │   ├── stores/
+│   │   │   ├── dto/
+│   │   │   │   ├── create-store.dto.ts
+│   │   │   │   └── update-store.dto.ts
+│   │   │   ├── store.interface.ts          ← interface Store
+│   │   │   ├── stores.service.ts           ← CRUD tiendas (PostgreSQL)
+│   │   │   ├── stores.controller.ts        ← /stores endpoints
+│   │   │   └── stores.module.ts
+│   │   ├── products/
+│   │   │   ├── dto/
+│   │   │   │   ├── create-product.dto.ts
+│   │   │   │   └── update-product.dto.ts
+│   │   │   ├── product.interface.ts        ← interface Product + Variant
+│   │   │   ├── products.service.ts         ← CRUD productos (MongoDB)
+│   │   │   ├── products.controller.ts      ← /stores/:storeId/products
+│   │   │   └── products.module.ts
+│   │   ├── app.module.ts                   ← módulo raíz
+│   │   └── main.ts                         ← puerto 3001, CORS, ValidationPipe
+│   └── .env
+│
+└── frontend/
+    ├── src/
+    │   ├── app/
+    │   │   ├── auth/
+    │   │   │   ├── login/
+    │   │   │   │   └── page.tsx            ✅ LISTO
+    │   │   │   └── register/
+    │   │   │       └── page.tsx            ✅ LISTO
+    │   │   ├── admin/
+    │   │   │   └── stores/
+    │   │   │       └── page.tsx            ⏳ PENDIENTE
+    │   │   ├── owner/
+    │   │   │   ├── stores/
+    │   │   │   │   └── page.tsx            ⏳ PENDIENTE
+    │   │   │   └── products/
+    │   │   │       └── page.tsx            ⏳ PENDIENTE
+    │   │   ├── store/
+    │   │   │   └── [slug]/
+    │   │   │       └── page.tsx            ⏳ PENDIENTE
+    │   │   ├── layout.tsx                  ✅ LISTO
+    │   │   └── page.tsx                    ⏳ PENDIENTE (portal principal)
+    │   ├── components/
+    │   │   ├── layout/
+    │   │   │   ├── Navbar.tsx              ⏳ PENDIENTE
+    │   │   │   ├── Sidebar.tsx             ⏳ PENDIENTE
+    │   │   │   └── Footer.tsx              ⏳ PENDIENTE
+    │   │   └── ui/
+    │   │       ├── Button.tsx              ✅ LISTO
+    │   │       ├── Input.tsx               ✅ LISTO
+    │   │       └── Card.tsx                ⏳ PENDIENTE
+    │   ├── lib/
+    │   │   ├── api.ts                      ✅ LISTO
+    │   │   └── utils.ts                    ✅ LISTO
+    │   ├── store/
+    │   │   └── auth.store.ts               ✅ LISTO
+    │   └── types/
+    │       └── index.ts                    ✅ LISTO
+    └── .env.local
+
+
+================================================================
+  4. LO QUE HEMOS CONSTRUIDO — DETALLE
+================================================================
+
+----------------------------------------------------------------
+  BACKEND
+----------------------------------------------------------------
+
+  BASES DE DATOS (sin ORM)
+  ─────────────────────────
+  • PostgresModule (@Global) → inyecta POSTGRES_POOL en toda la app
+  • MongodbModule  (@Global) → inyecta MONGO_CLIENT en toda la app
+  • Ambos disponibles sin importar los módulos en cada feature
+
+  MÓDULO AUTH
+  ────────────
+  • Registro con hash bcrypt (salt rounds: 10)
+  • Login con email + contraseña (passport-local)
+  • Access Token  → JWT expira en 15 minutos
+  • Refresh Token → JWT expira en 7 días, hasheado en BD
+  • Refresh automático cuando el access token expira
+  • Logout invalida el refresh token en PostgreSQL
+  • JwtStrategy   → extrae usuario del Bearer token
+  • RolesGuard    → bloquea acceso según rol requerido
+  • @Roles()      → decorador para marcar rutas por rol
+  • @CurrentUser() → decorador para obtener usuario del request
+
+  MÓDULO USERS (PostgreSQL)
+  ──────────────────────────
+  • Tabla: users (id UUID, name, email, password_hash, role, refresh_token_hash)
+  • findByEmail, findById, create, updateRefreshToken
+  • Queries directas con pg Pool
+
+  MÓDULO STORES (PostgreSQL)
+  ───────────────────────────
+  • Tabla: stores (id UUID, owner_id, name, slug, description, logo_url, theme, is_published)
+  • CRUD completo con verificación de ownership
+  • Solo owner de la tienda o admin puede editar/eliminar
+  • Update dinámico (solo actualiza los campos enviados)
+  • Slug único por tienda
+
+  MÓDULO PRODUCTS (MongoDB)
+  ──────────────────────────
+  • Colección: products
+  • Campos: store_id, title, sku, price, stock, images[], variants[], attributes{}, is_active
+  • Variantes con SKU, precio, stock y atributos dinámicos propios
+  • Soft delete (is_active: false en vez de eliminar físicamente)
+  • Verificación que el producto pertenece a la tienda del owner
+
+  SISTEMA DE ROLES
+  ─────────────────
+  • super_admin → acceso total a toda la plataforma
+  • admin       → gestiona tiendas y owners
+  • owner       → gestiona su propia tienda y productos
+  • buyer       → comprador, acceso al portal público
+
+  ENDPOINTS DISPONIBLES
+  ──────────────────────
+  POST   /auth/register              → crear cuenta
+  POST   /auth/login                 → iniciar sesión
+  POST   /auth/refresh               → renovar tokens
+  POST   /auth/logout                → cerrar sesión
+
+  GET    /stores                     → listar tiendas
+  POST   /stores                     → crear tienda (admin)
+  GET    /stores/my                  → mis tiendas (owner)
+  GET    /stores/:id                 → ver tienda
+  PATCH  /stores/:id                 → editar tienda
+  DELETE /stores/:id                 → eliminar tienda
+
+  GET    /stores/:storeId/products   → listar productos
+  POST   /stores/:storeId/products   → crear producto (owner)
+  GET    /stores/:storeId/products/:id   → ver producto
+  PATCH  /stores/:storeId/products/:id   → editar producto
+  DELETE /stores/:storeId/products/:id   → eliminar producto
+
+
+----------------------------------------------------------------
+  FRONTEND
+----------------------------------------------------------------
+
+  CONFIGURACIÓN BASE
+  ───────────────────
+  • Next.js 15 con App Router y TypeScript
+  • Tailwind CSS v4
+  • Turbopack desactivado (CPU no compatible con instrucciones bmi2)
+  • CORS habilitado entre puerto 3000 (frontend) y 3001 (backend)
+  • Axios con interceptores: adjunta JWT en cada request,
+    hace refresh automático si el token expira (401)
+
+  DISEÑO "DARK PREMIUM MARKETPLACE"
+  ───────────────────────────────────
+  • Fondo principal : #0a0a0a
+  • Superficies      : #111111 / #1a1a1a
+  • Bordes           : #222222 / #333333
+  • Acento principal : #6366f1 (indigo)
+  • Acento éxito     : #10b981 (verde)
+  • Texto principal  : #f5f5f5
+  • Texto secundario : #a1a1aa (zinc-400)
+  • Animaciones con framer-motion (entrada, escala, opacidad)
+  • Gradientes de fondo con blur decorativo
+  • Toasts con Sonner (tema oscuro, posición top-right)
+
+  ARCHIVOS BASE
+  ──────────────
+  • src/lib/api.ts        → instancia axios con interceptores JWT
+  • src/lib/utils.ts      → función cn() para combinar clases Tailwind
+  • src/store/auth.store.ts → estado global Zustand (user, tokens, hydrate)
+  • src/types/index.ts    → interfaces TypeScript compartidas
+
+  COMPONENTES UI
+  ───────────────
+  • Button.tsx  → variantes: primary, secondary, ghost, danger
+                  tamaños: sm, md, lg
+                  prop loading con spinner animado
+  • Input.tsx   → con label, mensaje de error y ref forwarding
+  • Card.tsx    → contenedor con estilo dark (pendiente)
+
+  PÁGINAS COMPLETADAS
+  ────────────────────
+  • /auth/login    → formulario email+password, validación zod,
+                     animaciones framer-motion, gradiente de fondo,
+                     redirección por rol tras login exitoso
+  • /auth/register → formulario con confirmación de contraseña,
+                     validación zod, mismas animaciones
+
+
+================================================================
+  5. PROBLEMAS RESUELTOS DURANTE EL DESARROLLO
+================================================================
+
+  ┌─────────────────────────────────┬──────────────────────────────────────────┐
+  │ Problema                        │ Solución aplicada                        │
+  ├─────────────────────────────────┼──────────────────────────────────────────┤
+  │ CPU no soporta bmi2 (Turbopack) │ Turbopack desactivado en package.json    │
+  │ Puerto 3000 ocupado             │ Backend movido al puerto 3001            │
+  │ CORS bloqueando peticiones      │ app.enableCors() configurado en main.ts  │
+  │ zod v4 incompatible             │ Downgrade a zod@3.23.8                   │
+  │ @hookform/resolvers v5 incomp.  │ Downgrade a @hookform/resolvers@3.9.0    │
+  │ @nestjs/mapped-types conflicto  │ Instalado con --legacy-peer-deps         │
+  │ MongoDB URI duplicado en .env   │ Eliminada la línea duplicada             │
+  │ PostgreSQL sin base de datos    │ Creada shopperdb con psql                │
+  │ MongoDB no iniciaba             │ net start MongoDB como Administrador     │
+  └─────────────────────────────────┴──────────────────────────────────────────┘
+
+
+================================================================
+  6. PRÓXIMOS PASOS (PENDIENTES)
+================================================================
+
+  Frontend:
+  ─────────
+  [ ] Portal principal (/) → listado de tiendas publicadas con diseño
+  [ ] Navbar con navegación dinámica según rol
+  [ ] Sidebar para paneles admin/owner
+  [ ] Panel Admin (/admin/stores) → gestión de tiendas
+  [ ] Panel Owner (/owner/stores) → mis tiendas
+  [ ] Panel Owner (/owner/products) → mis productos
+  [ ] Página de tienda pública (/store/[slug])
+  [ ] Card.tsx componente
+
+  Backend:
+  ────────
+  [ ] Módulo Carrito con Redis
+  [ ] Módulo Checkout con Stripe
+  [ ] Módulo Analytics
+  [ ] Notificaciones y webhooks
+  [ ] API pública por tienda (con API keys)
+
+  Infraestructura:
+  ─────────────────
+  [ ] Redis para sesiones y carrito
+  [ ] Variables de entorno de producción
+  [ ] Docker + Docker Compose
+  [ ] CI/CD pipeline
+
+
+================================================================
+  COMANDOS PARA INICIAR EL PROYECTO
+================================================================
+
+  1. Iniciar MongoDB (como Administrador):
+     net start MongoDB
+
+  2. PostgreSQL ya corre como servicio de Windows automáticamente.
+
+  3. Iniciar backend:
+     cd C:\SHOPPER\backend
+     npm run start:de
+
+  4. Iniciar frontend:
+     cd C:\SHOPPER\frontend
+     npm run dev
+
+  URLs:
+  • Frontend  → http://localhost:3000
+  • Backend   → http://localhost:3001
+  • Login     → http://localhost:3000/auth/login
+  • Register  → http://localhost:3000/auth/register
+
+================================================================
