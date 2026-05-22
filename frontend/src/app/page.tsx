@@ -3,13 +3,13 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   motion, AnimatePresence, useInView,
+  useMotionValue, useSpring, useTransform,
 } from 'framer-motion';
 import {
   Search, Store, ArrowRight, X,
   ChevronLeft, ChevronRight, Package,
   Star, CheckCircle, ShoppingCart,
-  Flame, BadgeCheck, ShoppingBag,
-  Sparkles, Crown,
+  BadgeCheck, Sparkles, Crown,
 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -20,22 +20,25 @@ import { useCartStore } from '@/store/cart.store';
 const fmt = (n: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
-function ContadorAnimado({ objetivo, sufijo = '' }: { objetivo: number; sufijo?: string }) {
-  const [conteo, setConteo] = useState(0);
-  const ref = useRef(null);
-  const enVista = useInView(ref, { once: true });
+// ── Contador con física de spring (mucho más suave que setInterval) ──
+function ContadorSpring({ objetivo, sufijo = '', retardo = 0 }: {
+  objetivo: number; sufijo?: string; retardo?: number;
+}) {
+  const count   = useMotionValue(0);
+  const spring  = useSpring(count, { stiffness: 40, damping: 20, restDelta: 0.5 });
+  const display = useTransform(spring, v =>
+    `${Math.round(v).toLocaleString('es-CO')}${sufijo}`,
+  );
+  const ref    = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: '-60px' });
+
   useEffect(() => {
-    if (!enVista) return;
-    let actual = 0;
-    const paso = objetivo / (1800 / 16);
-    const t = setInterval(() => {
-      actual += paso;
-      if (actual >= objetivo) { setConteo(objetivo); clearInterval(t); }
-      else setConteo(Math.floor(actual));
-    }, 16);
-    return () => clearInterval(t);
-  }, [enVista, objetivo]);
-  return <span ref={ref}>{conteo.toLocaleString('es-CO')}{sufijo}</span>;
+    if (!inView) return;
+    const t = setTimeout(() => count.set(objetivo), retardo * 1000);
+    return () => clearTimeout(t);
+  }, [inView, objetivo, count, retardo]);
+
+  return <motion.span ref={ref}>{display}</motion.span>;
 }
 
 type ProductoDestacado = TipoProducto & { nombreTienda: string; slugTienda: string; idTienda: string };
@@ -102,9 +105,14 @@ function HeroSlider() {
       onMouseEnter={() => setPausado(true)} onMouseLeave={() => { setPausado(false); reiniciar(); }}>
       <AnimatePresence custom={dir} mode="popLayout" initial={false}>
         <motion.div key={s.id} custom={dir}
-          initial={d => ({ x: d > 0 ? '100%' : '-100%', opacity: 0 })}
-          animate={{ x: 0, opacity: 1, transition: { duration: 0.55, ease: [0.32, 0.72, 0, 1] } }}
-          exit={d => ({ x: d > 0 ? '-100%' : '100%', opacity: 0, transition: { duration: 0.45 } })}
+          variants={{
+            enter: (d: number) => ({ x: d > 0 ? '100%' : '-100%', opacity: 0 }),
+            center: { x: 0, opacity: 1, transition: { duration: 0.55, ease: [0.32, 0.72, 0, 1] as const } },
+            exit:  (d: number) => ({ x: d > 0 ? '-100%' : '100%', opacity: 0, transition: { duration: 0.45 } }),
+          }}
+          initial="enter"
+          animate="center"
+          exit="exit"
           className={`absolute inset-0 bg-gradient-to-r ${s.bg} flex items-center`}>
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
           <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full flex items-center justify-between gap-8">
@@ -560,39 +568,196 @@ function ComoFunciona() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   STATS BAR — con íconos y animación mejorada
+   STATS BAR — palette del design system (#FF9900 + #131921)
 ═══════════════════════════════════════════════════════════════════ */
-const STATS_ICONOS = [
-  { svg: <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" fill="rgba(255,153,0,0.2)"/><rect x="9" y="12" width="6" height="9" rx="1" stroke="currentColor" strokeWidth="2"/></svg> },
-  { svg: <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6"><path d="M20 7H4a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" stroke="currentColor" strokeWidth="2" fill="rgba(255,153,0,0.2)"/><path d="M16 3H8L6 7h12l-2-4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg> },
-  { svg: <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6"><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" fill="rgba(255,153,0,0.2)"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="currentColor" strokeWidth="2"/><path d="M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> },
-  { svg: <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6"><path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z" stroke="currentColor" strokeWidth="2" fill="rgba(255,153,0,0.2)"/></svg> },
+
+const STATS_META = [
+  {
+    etiq: 'Tiendas activas', anillo: 75,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+          stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2"/>
+        <rect x="9" y="12" width="6" height="9" rx="1"
+          stroke="currentColor" strokeWidth="2"/>
+      </svg>
+    ),
+  },
+  {
+    etiq: 'Productos', anillo: 83,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
+        <path d="M20 7H4a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"
+          stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2"/>
+        <path d="M16 3H8L6 7h12l-2-4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    etiq: 'Compradores', anillo: 68,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
+        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2"/>
+        <path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="currentColor" strokeWidth="2"/>
+        <path d="M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    etiq: 'Satisfacción', anillo: 98,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
+        <path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"
+          stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2"/>
+      </svg>
+    ),
+  },
 ];
 
-function StatsBar({ stats }: { stats: { valor: number; sufijo: string; etiq: string }[] }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
+// Anillo SVG en naranja (único acento del design system)
+function AnilloSVG({ porcentaje, activo, retardo }: {
+  porcentaje: number; activo: boolean; retardo: number;
+}) {
+  const r = 38;
+  const c = 2 * Math.PI * r;
   return (
-    <section ref={ref} className="py-12 border-t border-[var(--border)] bg-[var(--nav-bg)] relative overflow-hidden">
-      {/* Fondo decorativo */}
-      <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,153,0,0.6) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      <div className="max-w-7xl mx-auto px-4 md:px-6 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {stats.map((s, i) => (
-            <motion.div key={s.etiq}
-              initial={{ opacity: 0, y: 24 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: i * 0.12, duration: 0.5 }}
-              className="flex flex-col items-center text-center group">
-              <motion.div whileHover={{ scale: 1.1, rotate: 5 }}
-                className="w-14 h-14 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-2xl flex items-center justify-center mb-3 text-[var(--accent)] transition-all group-hover:bg-[var(--accent)]/20">
-                {STATS_ICONOS[i]?.svg}
-              </motion.div>
-              <div className="text-3xl md:text-4xl font-black text-[var(--accent)] mb-1 tabular-nums">
-                <ContadorAnimado objetivo={s.valor} sufijo={s.sufijo} />
-              </div>
-              <p className="text-xs text-white/50 uppercase tracking-widest font-semibold">{s.etiq}</p>
-            </motion.div>
+    <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full"
+      style={{ transform: 'rotate(-90deg)' }}>
+      {/* Track */}
+      <circle cx="50" cy="50" r={r} fill="none"
+        stroke="rgba(255,153,0,0.12)" strokeWidth="4" />
+      {/* Fill naranja */}
+      <motion.circle
+        cx="50" cy="50" r={r}
+        fill="none"
+        stroke="#FF9900"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        initial={{ strokeDashoffset: c }}
+        animate={activo ? { strokeDashoffset: c * (1 - porcentaje / 100) } : {}}
+        transition={{ duration: 1.6, delay: retardo, ease: [0.22, 1, 0.36, 1] }}
+        style={{ filter: 'drop-shadow(0 0 5px rgba(255,153,0,0.5))' }}
+      />
+    </svg>
+  );
+}
+
+// Tarjeta con tilt 3D sutil (máx 4°, palette unificada)
+function StatCard({ meta, valor, sufijo, index, inView }: {
+  meta: typeof STATS_META[0]; valor: number; sufijo: string;
+  index: number; inView: boolean;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const rotX    = useMotionValue(0);
+  const rotY    = useMotionValue(0);
+  const sRotX   = useSpring(rotX, { stiffness: 300, damping: 32 });
+  const sRotY   = useSpring(rotY, { stiffness: 300, damping: 32 });
+
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const dx = ((e.clientX - rect.left)  / rect.width  - 0.5) * 2;
+    const dy = ((e.clientY - rect.top)   / rect.height - 0.5) * 2;
+    rotX.set(-dy * 4);
+    rotY.set( dx * 4);
+  };
+  const onLeave = () => { rotX.set(0); rotY.set(0); };
+
+  const retardo = index * 0.1;
+
+  return (
+    <motion.div
+      ref={cardRef}
+      style={{ rotateX: sRotX, rotateY: sRotY, transformPerspective: 1000 }}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      initial={{ opacity: 0, y: 32 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ delay: retardo, duration: 0.55, type: 'spring', stiffness: 200, damping: 24 }}
+      className="group relative flex flex-col items-center text-center px-4 py-8 rounded-2xl
+                 border border-white/[0.07] bg-white/[0.03] cursor-default select-none
+                 hover:border-[var(--accent-border)] transition-colors duration-300"
+    >
+      {/* Glow naranja al hacer hover — sutil */}
+      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100
+                      transition-opacity duration-500 pointer-events-none"
+        style={{ boxShadow: 'inset 0 0 24px rgba(255,153,0,0.07), 0 0 32px rgba(255,153,0,0.08)' }} />
+
+      {/* Anillo + icono */}
+      <div className="relative w-20 h-20 mb-5">
+        <AnilloSVG porcentaje={meta.anillo} activo={inView} retardo={retardo + 0.3} />
+        {/* Pulso suave */}
+        <motion.div
+          animate={{ scale: [1, 1.14, 1], opacity: [0.1, 0.28, 0.1] }}
+          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: index * 0.6 }}
+          className="absolute inset-2 rounded-full"
+          style={{ background: 'radial-gradient(circle, #FF9900 0%, transparent 70%)' }}
+        />
+        {/* Ícono centrado */}
+        <div className="absolute inset-0 flex items-center justify-center text-[var(--accent)]">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center
+                          bg-[var(--accent-subtle)]">
+            {meta.icon}
+          </div>
+        </div>
+      </div>
+
+      {/* Número */}
+      <div className="text-4xl md:text-5xl font-black leading-none tabular-nums">
+        {/* Dígitos en blanco, sufijo en naranja */}
+        <span className="text-white">
+          <ContadorSpring objetivo={valor} sufijo="" retardo={retardo + 0.15} />
+        </span>
+        <span className="text-[var(--accent)]">{sufijo}</span>
+      </div>
+
+      {/* Etiqueta */}
+      <p className="mt-2.5 text-[11px] font-bold uppercase tracking-widest text-white/35">
+        {meta.etiq}
+      </p>
+
+      {/* Línea de acento animada */}
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={inView ? { scaleX: 1 } : {}}
+        transition={{ delay: retardo + 0.8, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="absolute bottom-0 inset-x-8 h-px rounded-full origin-left"
+        style={{ background: 'linear-gradient(to right, transparent, #FF9900, transparent)' }}
+      />
+    </motion.div>
+  );
+}
+
+function StatsBar({ stats }: { stats: { valor: number; sufijo: string; etiq: string }[] }) {
+  const ref    = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-80px' });
+
+  return (
+    <section ref={ref} className="relative py-16 border-t border-white/[0.06] bg-[var(--nav-bg)] overflow-hidden">
+      {/* Un solo blob naranja muy sutil — en palette */}
+      <motion.div
+        animate={{ x: [0, 60, -40, 0], y: [0, -50, 40, 0] }}
+        transition={{ duration: 24, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute -top-40 right-0 w-[400px] h-[400px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(255,153,0,0.06) 0%, transparent 70%)' }}
+      />
+      {/* Dot grid idéntico al hero y al banner */}
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style={{ backgroundImage: 'radial-gradient(circle, rgba(255,153,0,0.7) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+      <div className="max-w-5xl mx-auto px-4 md:px-6 relative z-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {STATS_META.map((meta, i) => (
+            <StatCard
+              key={meta.etiq}
+              meta={meta}
+              valor={stats[i]?.valor ?? 0}
+              sufijo={stats[i]?.sufijo ?? ''}
+              index={i}
+              inView={inView}
+            />
           ))}
         </div>
       </div>
