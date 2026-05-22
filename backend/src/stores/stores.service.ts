@@ -36,6 +36,13 @@ export class StoresService {
 
   async findAll(): Promise<Store[]> {
     const { rows } = await this.pool.query(
+      'SELECT * FROM stores WHERE is_published = true ORDER BY created_at DESC',
+    );
+    return rows;
+  }
+
+  async findAllAdmin(): Promise<Store[]> {
+    const { rows } = await this.pool.query(
       'SELECT * FROM stores ORDER BY created_at DESC',
     );
     return rows;

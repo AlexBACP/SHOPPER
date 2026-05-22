@@ -1,32 +1,38 @@
-// src/reviews/reviews.service.ts
 import {
   Injectable, Inject, NotFoundException,
-  ConflictException, ForbiddenException,
+  ConflictException, ForbiddenException, BadRequestException,
 } from '@nestjs/common';
-import { Pool } from 'pg';
+import { Pool }                from 'pg';
+import { MongoClient, ObjectId } from 'mongodb';
 import { POSTGRES_POOL } from '../database/postgres/postgres.provider';
+import { MONGO_CLIENT }  from '../database/mongodb/mongodb.provider';
 
 export interface Resena {
-  id:          string;
-  product_id:  string;
-  user_id:     string;
-  user_name:   string;
-  rating:      number;
-  comment:     string | null;
-  created_at:  string;
+  id:         string;
+  product_id: string;
+  user_id:    string;
+  user_name:  string;
+  rating:     number;
+  comment:    string | null;
+  created_at: string;
 }
 
 export interface ResumenResenas {
-  promedio: number;  // 0–5, 1 decimal
-  total:    number;
-  por_estrella: Record<1|2|3|4|5, number>; // cantidad por cada estrella
+  promedio:    number;
+  total:       number;
+  por_estrella: Record<1|2|3|4|5, number>;
 }
 
 @Injectable()
 export class ReviewsService {
   constructor(
-    @Inject(POSTGRES_POOL) private readonly pool: Pool,
+    @Inject(POSTGRES_POOL) private readonly pool:  Pool,
+    @Inject(MONGO_CLIENT)  private readonly mongo: MongoClient,
   ) {}
+
+  private get products() {
+    return this.mongo.db().collection('products');
+  }
 
   async crear(
     userId:    string,
@@ -34,7 +40,17 @@ export class ReviewsService {
     rating:    number,
     comment?:  string,
   ): Promise<Resena> {
-    // Verificar que no exista ya una reseña de este usuario para este producto
+    // Validar que el producto existe en MongoDB
+    let objectId: ObjectId;
+    try {
+      objectId = new ObjectId(productId);
+    } catch {
+      throw new BadRequestException('product_id inválido');
+    }
+    const product = await this.products.findOne({ _id: objectId, is_active: true });
+    if (!product) throw new NotFoundException('Producto no encontrado o inactivo');
+
+    // Evitar reseña duplicada
     const { rows: existing } = await this.pool.query(
       'SELECT id FROM reviews WHERE product_id = $1 AND user_id = $2',
       [productId, userId],
@@ -50,7 +66,6 @@ export class ReviewsService {
       [productId, userId, rating, comment ?? null],
     );
 
-    // Enriquecer con nombre del usuario
     const { rows: user } = await this.pool.query<{ name: string }>(
       'SELECT name FROM users WHERE id = $1',
       [userId],
@@ -66,7 +81,8 @@ export class ReviewsService {
        FROM reviews r
        JOIN users u ON u.id = r.user_id
        WHERE r.product_id = $1
-       ORDER BY r.created_at DESC`,
+       ORDER BY r.created_at DESC
+       LIMIT 100`,
       [productId],
     );
     return rows;
@@ -86,11 +102,11 @@ export class ReviewsService {
     let total = 0;
 
     for (const row of rows) {
-      const rating = Number(row.rating);
-      const count  = Number(row.count);
-      porEstrella[rating] = count;
-      suma  += rating * count;
-      total += count;
+      const r = Number(row.rating);
+      const c = Number(row.count);
+      porEstrella[r] = c;
+      suma  += r * c;
+      total += c;
     }
 
     return {

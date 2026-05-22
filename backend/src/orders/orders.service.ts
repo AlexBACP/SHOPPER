@@ -72,7 +72,7 @@ export class OrdersService {
       await client.query('BEGIN');
 
       const { rows: orderRows } = await client.query(
-        `INSERT INTO orders (user_id, status, total, shipping_name, shipping_address, shipping_city, shipping_notes)
+        `INSERT INTO orders (buyer_id, status, total, shipping_name, shipping_address, shipping_city, shipping_notes)
          VALUES ($1, 'pending', $2, $3, $4, $5, $6) RETURNING *`,
         [buyerId, total, dto.shipping_name, dto.shipping_address, dto.shipping_city, dto.shipping_notes ?? null],
       );
@@ -203,7 +203,7 @@ export class OrdersService {
     const { rows } = await this.pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
     if (!rows[0]) throw new NotFoundException('Orden no encontrada');
     const order: Order = rows[0];
-    if (order.user_id !== requesterId && requesterRole !== 'admin' && requesterRole !== 'super_admin') {
+    if (order.buyer_id !== requesterId && requesterRole !== 'admin' && requesterRole !== 'super_admin') {
       throw new ForbiddenException('No tienes acceso a esta orden');
     }
     const { rows: items } = await this.pool.query(
@@ -214,7 +214,7 @@ export class OrdersService {
 
   async findByBuyer(buyerId: string): Promise<Order[]> {
     const { rows } = await this.pool.query(
-      'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC', [buyerId],
+      'SELECT * FROM orders WHERE buyer_id = $1 ORDER BY created_at DESC', [buyerId],
     );
     return rows;
   }
@@ -333,7 +333,7 @@ export class OrdersService {
   }
 
   private async notificarCambioEstado(orden: Order): Promise<void> {
-    const buyer = await this.usersService.findById(orden.user_id);
+    const buyer = await this.usersService.findById(orden.buyer_id);
     if (!buyer) return;
     await this.emailService.sendStatusUpdate({
       buyerName:  buyer.name,
