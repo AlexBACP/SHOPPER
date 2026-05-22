@@ -1,20 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { Crown, MapPin, Mail, Shield, Truck, BadgeCheck, Phone, Heart } from 'lucide-react';
+import { Truck, Shield, BadgeCheck, MapPin, Mail, Heart } from 'lucide-react';
+import { LogoIcon }       from '@/components/ui/LogoIcon';
+import { FOOTER_LINKS, PAYMENT_METHODS } from '@/config/navigation';
+import { SITE_CONFIG }    from '@/config/constants';
+
+const TRUST_ITEMS = [
+  { icono: Truck,      titulo: 'Envíos a todo Colombia',  desc: 'Seguimiento en tiempo real'                      },
+  { icono: Shield,     titulo: 'Pago 100% seguro',        desc: 'SSL 256-bit · Sin cargos ocultos · IVA incluido' },
+  { icono: BadgeCheck, titulo: 'Vendedores verificados',  desc: 'Cada tienda revisada por nosotros'               },
+] as const;
 
 export default function Footer() {
   const year = new Date().getFullYear();
+
   return (
     <footer className="bg-[var(--nav-bg)] text-white">
+
       {/* Trust bar */}
       <div className="border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[
-            { icono: Truck,       titulo: 'Envíos a todo Colombia',   desc: 'Seguimiento en tiempo real' },
-            { icono: Shield,      titulo: 'Pago 100% seguro',         desc: 'SSL 256-bit · Sin cargos ocultos · IVA incluido' },
-            { icono: BadgeCheck,  titulo: 'Vendedores verificados',    desc: 'Cada tienda revisada por nosotros' },
-          ].map(({ icono: Icono, titulo, desc }) => (
+          {TRUST_ITEMS.map(({ icono: Icono, titulo, desc }) => (
             <div key={titulo} className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center shrink-0">
                 <Icono className="w-5 h-5 text-[var(--accent)]" />
@@ -35,102 +42,73 @@ export default function Footer() {
         <div className="col-span-2 md:col-span-1">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-md">
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
-                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="white" strokeWidth="2" strokeLinejoin="round" fill="rgba(255,255,255,0.15)"/>
-                <path d="M3 6h18" stroke="white" strokeWidth="2"/>
-                <path d="M16 10a4 4 0 01-8 0" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
+              <LogoIcon />
             </div>
-            <span className="text-lg font-black text-white">Shopper</span>
+            <span className="text-lg font-black text-white">{SITE_CONFIG.name}</span>
           </div>
           <p className="text-sm text-white/50 leading-relaxed mb-4">
             El marketplace colombiano con las mejores tiendas independientes del país. Compra segura, IVA incluido.
           </p>
           <div className="space-y-1.5 text-xs text-white/40">
-            <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />Bogotá D.C., Colombia 🇨🇴</div>
-            <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />soporte@shopper.co</div>
+            <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{SITE_CONFIG.location} 🇨🇴</div>
+            <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{SITE_CONFIG.email}</div>
           </div>
         </div>
 
         {/* Comprar */}
-        <div>
-          <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Comprar</h4>
-          <ul className="space-y-2.5">
-            {[
-              { href: '/#tiendas',       label: 'Todas las tiendas'   },
-              { href: '/#como-funciona', label: 'Cómo funciona'       },
-              { href: '/cart',           label: 'Mi carrito'          },
-              { href: '/orders',         label: 'Mis pedidos'         },
-              { href: '/wishlist',       label: 'Lista de deseos'     },
-              { href: '/dashboard',      label: 'Mi cuenta'           },
-            ].map(({ href, label }) => (
-              <li key={href}>
-                <Link href={href} className="text-sm text-white/50 hover:text-white transition-colors hover:translate-x-0.5 inline-flex items-center gap-1">
-                  {label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <FooterColumn titulo="Comprar" links={FOOTER_LINKS.comprar} />
 
         {/* Vender */}
-        <div>
-          <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Vender</h4>
-          <ul className="space-y-2.5">
-            {[
-              { href: '/auth/register',    label: 'Abrir mi tienda gratis' },
-              { href: '/auth/login',       label: 'Iniciar sesión'         },
-              { href: '/owner',            label: 'Panel vendedor'         },
-              { href: '/owner/products',   label: 'Mis productos'          },
-              { href: '/owner/orders',     label: 'Mis pedidos'            },
-              { href: '/owner/analytics',  label: 'Analíticas'             },
-            ].map(({ href, label }) => (
-              <li key={href}>
-                <Link href={href} className="text-sm text-white/50 hover:text-white transition-colors">
-                  {label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <FooterColumn titulo="Vender" links={FOOTER_LINKS.vender} />
 
-        {/* Legal y soporte */}
-        <div>
-          <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Legal</h4>
-          <ul className="space-y-2.5">
-            {[
-              { href: '/terms',                 label: 'Términos y condiciones' },
-              { href: '/privacy',               label: 'Política de privacidad' },
-              { href: '/terms#envios',          label: 'Política de envíos'     },
-              { href: '/terms#devoluciones',    label: 'Devoluciones'           },
-              { href: 'mailto:soporte@shopper.co', label: 'Contacto'           },
-              { href: 'https://www.sic.gov.co', label: 'SIC — Defensa consumidor', external: true },
-            ].map(({ href, label, external }) => (
-              <li key={label}>
-                <Link href={href} {...(external ? { target:'_blank', rel:'noopener noreferrer' } : {})}
-                  className="text-sm text-white/50 hover:text-white transition-colors">
-                  {label}{external && <span className="text-[10px] ml-1 opacity-50">↗</span>}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {/* Legal */}
+        <FooterColumn titulo="Legal" links={FOOTER_LINKS.legal} />
       </div>
 
       {/* Bottom bar */}
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-white/30 text-center sm:text-left">
-            © {year} Shopper Colombia · Hecho con <Heart className="w-3 h-3 inline fill-rose-500 text-rose-500" /> en Colombia ·
-            Ley 1581/2012 · IVA 19% incluido
+            © {year} {SITE_CONFIG.name} Colombia · Hecho con{' '}
+            <Heart className="w-3 h-3 inline fill-rose-500 text-rose-500" aria-hidden="true" />{' '}
+            en Colombia · Ley 1581/2012 · IVA 19% incluido
           </p>
           <div className="flex items-center gap-4 flex-wrap justify-center">
-            {['PSE', 'Nequi', 'Daviplata', 'Visa', 'Mastercard'].map(m => (
+            {PAYMENT_METHODS.map(m => (
               <span key={m} className="text-xs text-white/25 font-bold">{m}</span>
             ))}
           </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+// ── Subcomponente reutilizable de columna de links ────────────────────
+function FooterColumn({
+  titulo,
+  links,
+}: {
+  titulo: string;
+  links: ReadonlyArray<{ href: string; label: string; external?: boolean }>;
+}) {
+  return (
+    <div>
+      <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">{titulo}</h4>
+      <ul className="space-y-2.5">
+        {links.map(({ href, label, external }) => (
+          <li key={label}>
+            <Link
+              href={href}
+              {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+              className="text-sm text-white/50 hover:text-white transition-colors"
+            >
+              {label}
+              {external && <span className="text-[10px] ml-1 opacity-50">↗</span>}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

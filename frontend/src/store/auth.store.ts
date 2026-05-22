@@ -1,22 +1,20 @@
-// src/store/auth.store.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { User } from '@/types';
+import { COOKIE_CONFIG } from '@/config/constants';
 
 interface AuthState {
-  user: User | null;
-  accessToken: string | null;
+  user:         User | null;
+  accessToken:  string | null;
   refreshToken: string | null;
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
-  logout: () => void;
+  setAuth:         (user: User, accessToken: string, refreshToken: string) => void;
+  logout:          () => void;
   isAuthenticated: () => boolean;
-  hydrate: () => void;
 }
 
-// ── Cookie para el middleware de Next.js ──────────────────
 function setAuthCookie(token: string) {
   if (typeof document === 'undefined') return;
-  document.cookie = `accessToken=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  document.cookie = `accessToken=${token}; ${COOKIE_CONFIG}`;
 }
 
 function clearAuthCookie() {
@@ -24,7 +22,6 @@ function clearAuthCookie() {
   document.cookie = 'accessToken=; path=/; max-age=0; SameSite=Lax';
 }
 
-// ── Store ─────────────────────────────────────────────────
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -43,13 +40,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       isAuthenticated: () => !!get().accessToken,
-
-      // Mantenemos hydrate() para compatibilidad con código existente.
-      // Con persist, ya no es necesario llamarlo manualmente.
-      hydrate: () => {
-        const token = get().accessToken;
-        if (token) setAuthCookie(token);
-      },
     }),
     {
       name:    'shopper-auth',
@@ -59,11 +49,8 @@ export const useAuthStore = create<AuthState>()(
         accessToken:  state.accessToken,
         refreshToken: state.refreshToken,
       }),
-      // Re-sincroniza la cookie del middleware al rehidratar
       onRehydrateStorage: () => (state) => {
-        if (state?.accessToken) {
-          setAuthCookie(state.accessToken);
-        }
+        if (state?.accessToken) setAuthCookie(state.accessToken);
       },
     },
   ),

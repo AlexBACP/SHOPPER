@@ -1,60 +1,70 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingBag, ShoppingCart, Store, Shield, Package,
   LogOut, User, ChevronDown, Menu, X, LayoutDashboard,
-  Users, BarChart3, Crown, Sparkles, Settings, Search, MapPin, Heart,
+  Users, BarChart3, Sparkles, Search, MapPin, Heart,
 } from 'lucide-react';
-import { useAuthStore } from '@/store/auth.store';
-import { useCartStore } from '@/store/cart.store';
-import { useWishlistStore } from '@/store/wishlist.store';
+import { useAuthStore }      from '@/store/auth.store';
+import { useCartStore }      from '@/store/cart.store';
+import { useWishlistStore }  from '@/store/wishlist.store';
+import { useClickOutside }   from '@/hooks/useClickOutside';
+import { LogoIcon }          from '@/components/ui/LogoIcon';
+import { CATEGORIES }        from '@/config/navigation';
 import api from '@/lib/api';
 
+// ── Tipos ─────────────────────────────────────────────────────────────
 type Rol = 'super_admin' | 'admin' | 'owner' | 'buyer';
 
+// ── Helpers (fuera del componente para evitar recreación) ─────────────
 function obtenerEnlaces(rol: Rol) {
   const inicio = [{ href: '/', label: 'Inicio', icono: Store }];
   if (rol === 'buyer') return [
-    { href: '/dashboard', label: 'Panel',       icono: LayoutDashboard },
-    { href: '/',          label: 'Tiendas',      icono: Store },
-    { href: '/orders',    label: 'Mis pedidos',  icono: ShoppingBag },
+    { href: '/dashboard', label: 'Panel',      icono: LayoutDashboard },
+    { href: '/',          label: 'Tiendas',     icono: Store           },
+    { href: '/orders',    label: 'Mis pedidos', icono: ShoppingBag     },
   ];
   if (rol === 'owner') return [
     ...inicio,
     { href: '/dashboard',       label: 'Panel',       icono: LayoutDashboard },
-    { href: '/owner/stores',    label: 'Mis tiendas', icono: Store },
-    { href: '/owner/products',  label: 'Productos',   icono: Package },
-    { href: '/owner/orders',    label: 'Pedidos',     icono: ShoppingBag },
-    { href: '/owner/analytics', label: 'Analíticas',  icono: BarChart3 },
+    { href: '/owner/stores',    label: 'Mis tiendas', icono: Store           },
+    { href: '/owner/products',  label: 'Productos',   icono: Package         },
+    { href: '/owner/orders',    label: 'Pedidos',     icono: ShoppingBag     },
+    { href: '/owner/analytics', label: 'Analíticas',  icono: BarChart3       },
   ];
   if (rol === 'admin' || rol === 'super_admin') return [
     ...inicio,
     { href: '/dashboard',          label: 'Panel',    icono: LayoutDashboard },
-    { href: '/admin/stores',       label: 'Tiendas',  icono: Store },
-    { href: '/admin/stores/users', label: 'Usuarios', icono: Users },
+    { href: '/admin/stores',       label: 'Tiendas',  icono: Store           },
+    { href: '/admin/stores/users', label: 'Usuarios', icono: Users           },
   ];
   return inicio;
 }
 
-function obtenerInsigniaRol(rol: Rol) {
-  const mapa: Record<Rol, { etiqueta: string; clase: string }> = {
-    super_admin: { etiqueta: 'Super Admin', clase: 'text-orange-600 bg-orange-50 border-orange-200' },
-    admin:       { etiqueta: 'Admin',       clase: 'text-blue-600  bg-blue-50   border-blue-200'   },
-    owner:       { etiqueta: 'Vendedor',    clase: 'text-teal-600  bg-teal-50   border-teal-200'   },
-    buyer:       { etiqueta: 'Comprador',   clase: 'text-green-600 bg-green-50  border-green-200'  },
-  };
-  return mapa[rol];
-}
+const ROL_INSIGNIA: Record<Rol, { etiqueta: string; clase: string }> = {
+  super_admin: { etiqueta: 'Super Admin', clase: 'text-orange-600 bg-orange-50 border-orange-200' },
+  admin:       { etiqueta: 'Admin',       clase: 'text-blue-600  bg-blue-50   border-blue-200'   },
+  owner:       { etiqueta: 'Vendedor',    clase: 'text-teal-600  bg-teal-50   border-teal-200'   },
+  buyer:       { etiqueta: 'Comprador',   clase: 'text-green-600 bg-green-50  border-green-200'  },
+};
 
-/* ── Menú desplegable de usuario ─────────────────────────────────── */
+const NAV_PUBLICO = [
+  { href: '/#tiendas',       label: 'Tiendas'       },
+  { href: '/#como-funciona', label: 'Cómo funciona' },
+  { href: '/search',         label: 'Novedades'     },
+  { href: '/auth/register',  label: 'Vender'        },
+] as const;
+
+// ── Subcomponente: menú desplegable de usuario ────────────────────────
 function MenuUsuario({ alCerrar }: { alCerrar: () => void }) {
   const { user, logout } = useAuthStore();
   if (!user) return null;
-  const insignia = obtenerInsigniaRol(user.role as Rol);
+
+  const insignia = ROL_INSIGNIA[user.role as Rol];
 
   const cerrarSesion = async () => {
     try { await api.post('/auth/logout'); } catch { /* silenciar */ }
@@ -62,6 +72,12 @@ function MenuUsuario({ alCerrar }: { alCerrar: () => void }) {
     alCerrar();
     window.location.href = '/';
   };
+
+  const opciones = [
+    { href: '/dashboard/profile', icono: User,            etiq: 'Mi perfil'      },
+    { href: '/dashboard',         icono: LayoutDashboard, etiq: 'Panel principal' },
+    ...(user.role === 'owner' ? [{ href: '/owner/stores', icono: Store, etiq: 'Mis tiendas' }] : []),
+  ];
 
   return (
     <motion.div
@@ -71,7 +87,6 @@ function MenuUsuario({ alCerrar }: { alCerrar: () => void }) {
       transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
       className="absolute right-0 top-full mt-2 w-64 bg-white border border-[var(--border)] rounded-lg shadow-[0_8px_32px_rgba(15,17,17,0.18)] overflow-hidden z-50"
     >
-      {/* Encabezado */}
       <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-[var(--accent)] text-white">
@@ -88,13 +103,8 @@ function MenuUsuario({ alCerrar }: { alCerrar: () => void }) {
         </span>
       </div>
 
-      {/* Opciones */}
       <div className="py-1">
-        {[
-          { href: '/dashboard/profile', icono: User,            etiq: 'Mi perfil' },
-          { href: '/dashboard',         icono: LayoutDashboard, etiq: 'Panel principal' },
-          ...(user.role === 'owner' ? [{ href: '/owner/stores', icono: Store, etiq: 'Mis tiendas' }] : []),
-        ].map(({ href, icono: Icono, etiq }) => (
+        {opciones.map(({ href, icono: Icono, etiq }) => (
           <Link key={href} href={href} onClick={alCerrar}
             className="flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] transition-colors">
             <Icono className="w-4 h-4" />
@@ -112,20 +122,26 @@ function MenuUsuario({ alCerrar }: { alCerrar: () => void }) {
   );
 }
 
-/* ── Navbar principal ────────────────────────────────────────────── */
+// ── Navbar principal ──────────────────────────────────────────────────
 export default function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const { count, openCart } = useCartStore();
   const wishCount = useWishlistStore(s => s.count)();
 
-  const [menuAbierto,   setMenuAbierto]   = useState(false);
-  const [dropAbierto,   setDropAbierto]   = useState(false);
-  const [desplazado,    setDesplazado]    = useState(false);
-  const [busqueda,      setBusqueda]      = useState('');
-  const [catAbiertas,   setCatAbiertas]   = useState(false);
-  const refDropdown  = useRef<HTMLDivElement>(null);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [dropAbierto, setDropAbierto] = useState(false);
+  const [catAbiertas, setCatAbiertas] = useState(false);
+  const [desplazado,  setDesplazado]  = useState(false);
+  const [busqueda,    setBusqueda]    = useState('');
+
+  const refDropdown   = useRef<HTMLDivElement>(null);
   const refCategorias = useRef<HTMLDivElement>(null);
+
+  const cerrarDrop = useCallback(() => setDropAbierto(false),  []);
+  const cerrarCat  = useCallback(() => setCatAbiertas(false), []);
+  useClickOutside(refDropdown,   cerrarDrop);
+  useClickOutside(refCategorias, cerrarCat);
 
   useEffect(() => {
     const fn = () => setDesplazado(window.scrollY > 4);
@@ -134,49 +150,36 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    const fn = (e: MouseEvent) => {
-      if (refDropdown.current && !refDropdown.current.contains(e.target as Node))
-        setDropAbierto(false);
-    };
-    document.addEventListener('mousedown', fn);
-    return () => document.removeEventListener('mousedown', fn);
-  }, []);
-
-  useEffect(() => { setMenuAbierto(false); setCatAbiertas(false); }, [pathname]);
-
-  useEffect(() => {
-    const fn = (e: MouseEvent) => {
-      if (refCategorias.current && !refCategorias.current.contains(e.target as Node))
-        setCatAbiertas(false);
-    };
-    document.addEventListener('mousedown', fn);
-    return () => document.removeEventListener('mousedown', fn);
-  }, []);
+    setMenuAbierto(false);
+    setCatAbiertas(false);
+  }, [pathname]);
 
   if (pathname.startsWith('/auth')) return null;
 
-  const enlaces     = user ? obtenerEnlaces(user.role as Rol) : [];
+  const enlaces      = user ? obtenerEnlaces(user.role as Rol) : [];
   const totalCarrito = count();
+
+  const irABuscar = () => {
+    const q = busqueda.trim();
+    if (q) window.location.href = `/search?q=${encodeURIComponent(q)}`;
+  };
 
   return (
     <>
-      {/* ── Barra superior (azul oscuro) ─────────────── */}
       <nav className={`fixed top-0 left-0 right-0 z-40 transition-shadow duration-200 ${desplazado ? 'shadow-[var(--shadow-nav)]' : ''}`}>
 
-        {/* Capa 1: azul oscuro tipo Amazon */}
+        {/* Capa 1: barra principal oscura */}
         <div className="bg-[var(--nav-bg)]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 shrink-0 group mr-2">
-              <div className="flex items-center gap-0">
-                <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30 group-hover:shadow-orange-500/50 transition-all">
-                  <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="white" strokeWidth="2" strokeLinejoin="round" fill="rgba(255,255,255,0.15)"/><path d="M3 6h18" stroke="white" strokeWidth="2"/><path d="M16 10a4 4 0 01-8 0" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
-                </div>
-                <span className="font-black text-lg text-white tracking-tight hidden sm:block ml-2">
-                  Shopper
-                </span>
+              <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30 group-hover:shadow-orange-500/50 transition-all">
+                <LogoIcon />
               </div>
+              <span className="font-black text-lg text-white tracking-tight hidden sm:block">
+                Shopper
+              </span>
             </Link>
 
             {/* Ubicación */}
@@ -188,18 +191,18 @@ export default function Navbar() {
               </div>
             </button>
 
-            {/* Barra de búsqueda */}
+            {/* Búsqueda */}
             <div className="flex-1 flex items-center max-w-2xl">
               <div className="flex w-full rounded-md overflow-hidden border-2 border-[var(--accent)] focus-within:border-[var(--accent-bright)] transition-colors">
                 <input
                   type="text"
                   value={busqueda}
                   onChange={e => setBusqueda(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && busqueda.trim() && (window.location.href = `/search?q=${encodeURIComponent(busqueda.trim())}`)}
+                  onKeyDown={e => e.key === 'Enter' && irABuscar()}
                   placeholder="Buscar productos y tiendas..."
                   className="flex-1 px-4 py-2 text-sm text-[var(--text-primary)] bg-white outline-none placeholder:text-[var(--text-muted)]"
                 />
-                <button className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] px-4 flex items-center justify-center transition-colors">
+                <button onClick={irABuscar} className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] px-4 flex items-center justify-center transition-colors">
                   <Search className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -226,13 +229,11 @@ export default function Navbar() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <div className="hidden md:flex items-center gap-1">
-                  <Link href="/auth/login"
-                    className="flex flex-col items-start px-2 py-1 rounded text-white hover:bg-white/10 transition-colors">
-                    <span className="text-[10px] text-white/70">Hola, Identifícate</span>
-                    <span className="text-xs font-bold">Cuenta y Listas</span>
-                  </Link>
-                </div>
+                <Link href="/auth/login"
+                  className="hidden md:flex flex-col items-start px-2 py-1 rounded text-white hover:bg-white/10 transition-colors">
+                  <span className="text-[10px] text-white/70">Hola, Identifícate</span>
+                  <span className="text-xs font-bold">Cuenta y Listas</span>
+                </Link>
               )}
 
               {/* Pedidos */}
@@ -258,7 +259,7 @@ export default function Navbar() {
 
               {/* Carrito */}
               <button onClick={openCart}
-                className="flex items-end gap-1 px-2 py-1 rounded text-white hover:bg-white/10 transition-colors relative"
+                className="flex items-end gap-1 px-2 py-1 rounded text-white hover:bg-white/10 transition-colors"
                 title="Ver carrito">
                 <div className="relative">
                   <ShoppingCart className="w-7 h-7" strokeWidth={1.5} />
@@ -301,10 +302,11 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Capa 2: barra de categorías (azul medio) */}
+        {/* Capa 2: barra de categorías */}
         <div className="bg-[var(--nav-sub-bg)] hidden md:block">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-9 flex items-center gap-0.5">
-            {/* Dropdown "Todo" */}
+
+            {/* Dropdown Todo */}
             <div ref={refCategorias} className="relative h-full">
               <button
                 onClick={() => setCatAbiertas(v => !v)}
@@ -328,29 +330,15 @@ export default function Navbar() {
                     <p className="px-4 pt-3 pb-1.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
                       Categorías
                     </p>
-                    {[
-                      { label: 'Moda y Ropa',   href: '/search?categoria=moda'       },
-                      { label: 'Hogar y Deco',   href: '/search?categoria=hogar'      },
-                      { label: 'Tecnología',     href: '/search?categoria=tecnologia' },
-                      { label: 'Artesanías',     href: '/search?categoria=artesanias' },
-                      { label: 'Alimentos',      href: '/search?categoria=alimentos'  },
-                      { label: 'Deportes',       href: '/search?categoria=deportes'   },
-                      { label: 'Belleza',        href: '/search?categoria=belleza'    },
-                      { label: 'Niños',          href: '/search?categoria=ninos'      },
-                    ].map(({ label, href }) => (
-                      <Link
-                        key={href}
-                        href={href}
-                        className="flex items-center px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-2)] hover:text-[var(--accent-dark)] transition-colors"
-                      >
+                    {CATEGORIES.map(({ label, href }) => (
+                      <Link key={href} href={href}
+                        className="flex items-center px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-2)] hover:text-[var(--accent-dark)] transition-colors">
                         {label}
                       </Link>
                     ))}
                     <div className="border-t border-[var(--border)] mt-1">
-                      <Link
-                        href="/search"
-                        className="flex items-center px-4 py-2.5 text-sm font-semibold text-[var(--accent-dark)] hover:bg-orange-50 transition-colors"
-                      >
+                      <Link href="/search"
+                        className="flex items-center px-4 py-2.5 text-sm font-semibold text-[var(--accent-dark)] hover:bg-orange-50 transition-colors">
                         Ver todo →
                       </Link>
                     </div>
@@ -359,47 +347,42 @@ export default function Navbar() {
               </AnimatePresence>
             </div>
 
+            {/* Links de navegación */}
             {!user ? (
               <>
-                {['Tiendas', 'Ofertas del Día', 'Novedades', 'Vender'].map(label => (
-                  <button key={label}
-                    className="px-3 h-full text-white text-xs hover:bg-white/10 rounded transition-colors border border-transparent hover:border-white/30 whitespace-nowrap">
+                {NAV_PUBLICO.map(({ href, label }) => (
+                  <Link key={href} href={href}
+                    className="px-3 h-full flex items-center text-white text-xs hover:bg-white/10 rounded transition-colors border border-transparent hover:border-white/30 whitespace-nowrap">
                     {label}
-                  </button>
+                  </Link>
                 ))}
+                <div className="ml-auto flex items-center gap-2">
+                  <Link href="/auth/register"
+                    className="px-3 py-1 text-xs font-bold text-[var(--nav-bg)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded transition-colors">
+                    Comenzar gratis
+                  </Link>
+                </div>
               </>
             ) : (
-              <>
-                {enlaces.slice(0, 6).map(enlace => {
-                  const activo = pathname === enlace.href || (enlace.href !== '/' && pathname.startsWith(enlace.href));
-                  return (
-                    <Link key={enlace.href} href={enlace.href}
-                      className={`flex items-center gap-1.5 px-3 h-full text-xs transition-colors rounded border whitespace-nowrap ${
-                        activo
-                          ? 'text-white font-bold border-white/40 bg-white/10'
-                          : 'text-white/90 hover:text-white hover:bg-white/10 border-transparent hover:border-white/30'
-                      }`}>
-                      <enlace.icono className="w-3 h-3" />
-                      {enlace.label}
-                    </Link>
-                  );
-                })}
-              </>
-            )}
-
-            {/* Registro si no hay user */}
-            {!user && (
-              <div className="ml-auto flex items-center gap-2">
-                <Link href="/auth/register"
-                  className="px-3 py-1 text-xs font-bold text-[var(--nav-bg)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded transition-colors">
-                  Comenzar gratis
-                </Link>
-              </div>
+              enlaces.slice(0, 6).map(enlace => {
+                const activo = pathname === enlace.href || (enlace.href !== '/' && pathname.startsWith(enlace.href));
+                return (
+                  <Link key={enlace.href} href={enlace.href}
+                    className={`flex items-center gap-1.5 px-3 h-full text-xs transition-colors rounded border whitespace-nowrap ${
+                      activo
+                        ? 'text-white font-bold border-white/40 bg-white/10'
+                        : 'text-white/90 hover:text-white hover:bg-white/10 border-transparent hover:border-white/30'
+                    }`}>
+                    <enlace.icono className="w-3 h-3" />
+                    {enlace.label}
+                  </Link>
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* ── Menú móvil ────────────────────────────────── */}
+        {/* Menú móvil */}
         <AnimatePresence>
           {menuAbierto && (
             <motion.div
@@ -409,7 +392,6 @@ export default function Navbar() {
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="md:hidden bg-white border-b border-[var(--border)] overflow-hidden shadow-lg"
             >
-              {/* Búsqueda móvil */}
               <div className="px-4 pt-3 pb-2">
                 <div className="flex rounded-md overflow-hidden border border-[var(--border)]">
                   <input
@@ -450,7 +432,9 @@ export default function Navbar() {
                     <button
                       onClick={async () => {
                         try { await api.post('/auth/logout'); } catch { /* */ }
-                        logout(); setMenuAbierto(false); window.location.href = '/';
+                        logout();
+                        setMenuAbierto(false);
+                        window.location.href = '/';
                       }}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors">
                       <LogOut className="w-4 h-4" />
@@ -477,8 +461,8 @@ export default function Navbar() {
         </AnimatePresence>
       </nav>
 
-      {/* Espaciador */}
-      {!pathname.startsWith('/auth') && <div className="h-[88px] md:h-[92px]" />}
+      {/* Espaciador para compensar el nav fijo */}
+      <div className="h-[88px] md:h-[92px]" />
     </>
   );
 }
