@@ -50,6 +50,15 @@ export class StoresService {
     return rows[0];
   }
 
+  async findBySlug(slug: string): Promise<Store> {
+    const { rows } = await this.pool.query(
+      'SELECT * FROM stores WHERE slug = $1 AND is_published = true',
+      [slug],
+    );
+    if (!rows[0]) throw new NotFoundException('Tienda no encontrada');
+    return rows[0];
+  }
+
   async findByOwner(ownerId: string): Promise<Store[]> {
     const { rows } = await this.pool.query(
       'SELECT * FROM stores WHERE owner_id = $1 ORDER BY created_at DESC',

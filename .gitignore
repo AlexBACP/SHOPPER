@@ -1,0 +1,18 @@
+# Archivos comprimidos / temporales
+*.zip
+*.tar.gz
+
+# Claude Code — memoria local del proyecto
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Variables de entorno (cada subproyecto tiene su propio .gitignore)
+.env
+.env.local
+.env*.local

@@ -14,7 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // Esto se adjunta como req.user en cada request autenticado
-    return { id: payload.sub, email: payload.email, role: payload.role };
+    // name incluido para que el frontend pueda mostrarlo sin petición extra
+    return { id: payload.sub, email: payload.email, role: payload.role, name: payload.name };
   }
 }

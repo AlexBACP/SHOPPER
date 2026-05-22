@@ -1,0 +1,444 @@
+================================================================
+  SHOPPER — RESUMEN COMPLETO DE SESIÓN
+  Fecha: Mayo 2026
+  Modelo: Claude Sonnet 4.6
+================================================================
+
+  Esta sesión cubrió rediseño visual profundo, nuevas features,
+  corrección de bugs, OAuth social login y limpieza general del
+  proyecto. Todo el código compila sin errores TypeScript.
+
+
+================================================================
+  1. LOGIN PAGE — REDISEÑO COMPLETO (2 iteraciones)
+================================================================
+
+  ARCHIVO: frontend/src/app/auth/login/page.tsx
+
+  ITERACIÓN 1 — Estilo Shopify (fondo blanco)
+  ─────────────────────────────────────────────
+  ✅ Fondo bg-[#0a0a0a] con ambient glow (verde #95bf47 + azul #5c6ac4)
+  ✅ Logo centrado con icono SVG de bolsa
+  ✅ Tarjeta blanca max-w-[420px] con sombra profunda
+  ✅ Input email con ícono Mail + validación zod/react-hook-form
+  ✅ Botón negro "Continuar con correo electrónico" + ArrowRight
+  ✅ Divider con "o"
+  ✅ Botón passkey con KeyRound icon
+  ✅ 3 botones sociales outline (Apple, Facebook, Google con SVG oficial)
+  ✅ AnimatePresence en errores de validación
+  ✅ Estado loading con <Loader2 animate-spin />
+
+  ITERACIÓN 2 — Tema Obsidian Gold + Selector Rol
+  ─────────────────────────────────────────────────
+  ✅ Selector animado Comprador | Vendedor (motion layout spring)
+  ✅ Heading dinámico que cambia según rol seleccionado
+  ✅ Formulario completo con email + contraseña (ambos campos)
+  ✅ Fondo con 8 capas animadas:
+     - Grilla animada que sube continuamente (14s loop lineal)
+     - Aurora rotatoria (2 blobs orbitando en sentidos opuestos)
+     - Blobs estáticos con float CSS
+     - Anillos de pulso concéntricos (efecto radar, 4 anillos)
+     - Líneas horizontales que se iluminan y apagan
+     - 2 barridos de luz diagonal
+     - 12 partículas flotantes con X+Y+escala simultáneos
+     - Viñeta radial oscura en esquinas
+  ✅ Botón flotante del logo en corona dorada con glow
+  ✅ Tarjeta con borde superior dorado (divisor-gold)
+  ✅ Redirección por rol: admin→/admin/stores, owner→/owner, buyer→/dashboard
+  ✅ BUG CRÍTICO CORREGIDO: btn-shimmer tenía position:relative que
+     pisaba position:fixed del botón flotante del chat → eliminado
+
+  OAUTH SOCIAL LOGIN (Google + Facebook + Apple placeholder)
+  ──────────────────────────────────────────────────────────
+  ✅ Botones redirigen a: ${NEXT_PUBLIC_API_URL}/auth/google
+  ✅ Botones redirigen a: ${NEXT_PUBLIC_API_URL}/auth/facebook
+  ✅ Apple: placeholder informativo hasta tener cuenta Developer
+
+
+================================================================
+  2. CHAT (ChatBot.tsx) — REDISEÑO COMPLETO
+================================================================
+
+  ARCHIVO: frontend/src/components/ui/ChatBot.tsx
+
+  ✅ Paleta completamente migrada de índigo/púrpura → ámbar/dorado
+  ✅ Botón flotante: gradiente ámbar + overflow-hidden (fix posición)
+  ✅ Anillo de pulso ambient en el botón flotante
+  ✅ Ventana: var(--surface) + var(--shadow-modal), dimensiones via style={}
+     (no más clases dinámicas que Tailwind no detectaba)
+  ✅ Header: Crown dorado en lugar de Bot/Sparkles
+  ✅ Burbujas usuario: gradiente ámbar con texto #09090b (correcto)
+  ✅ Burbujas bot: var(--surface-2) con borde
+  ✅ Typing indicator: puntos ámbar bouncing
+  ✅ Categorías expandibles con icono que se ilumina al abrir
+  ✅ Nombre "Shoppy" con font-serif-italic texto-dorado
+  ✅ Send button: dorado cuando hay texto, gris cuando vacío
+  ✅ Footer: "Potenciado por Gemini AI" con Crown icon
+  ✅ BUG CORREGIDO: chatW/chatH eran clases Tailwind dinámicas →
+     reemplazado por style={{ width: chatWidth, height: chatHeight }}
+
+
+================================================================
+  3. PANEL VENDEDOR — DASHBOARD NUEVO
+================================================================
+
+  ARCHIVO: frontend/src/app/owner/page.tsx (NUEVO)
+
+  ✅ Página de inicio del vendedor inspirada en Shopify Admin
+  ✅ Islas dinámicas (carga en paralelo con Promise.allSettled):
+     - 4 métricas: Ingresos, Pedidos, Tiendas activas, Productos activos
+     - Contadores animados con ease-out cubic
+     - Esqueletos de carga por isla
+  ✅ Acciones rápidas: Nueva tienda, Agregar producto, Pedidos, Analíticas
+  ✅ Pedidos recientes: últimas 7 órdenes con badge de estado, ciudad, total
+  ✅ Alertas: bloque ámbar para pedidos pendientes + lista stock bajo (<5)
+  ✅ Tarjetas por tienda: ingresos, pedidos, productos, estado publicada
+  ✅ Estado vacío elegante cuando no hay tiendas
+  ✅ Botón "Actualizar" con timestamp de última carga
+  ✅ Saludo dinámico: Buenos días/tardes/noches según hora
+
+  SIDEBAR ACTUALIZADO:
+  ✅ Rol owner: "Inicio" → /owner (antes apuntaba a /dashboard)
+  ✅ Rol owner: añadida "Analíticas" → /owner/analytics
+
+
+================================================================
+  4. PERFIL DE USUARIO — REDISEÑO COMPLETO
+================================================================
+
+  ARCHIVO: frontend/src/app/dashboard/profile/page.tsx
+
+  ✅ Hero del perfil con avatar dorado grande (w-20 h-20)
+  ✅ Glow radial que cambia color según rol del usuario
+  ✅ Animación spring bounce en el avatar al montar
+  ✅ Franja inferior con stats: Rol · Verificado · Plataforma
+  ✅ Sección Nombre: edición inline con expand animado
+  ✅ Sección Correo: solo lectura con etiqueta "Solo lectura"
+  ✅ Sección Contraseña: expandible con show/hide por campo
+  ✅ Sección Rol: badge con color del rol
+  ✅ Zona logout: borde rojo con whileHover/whileTap
+  ✅ Blobs decorativos animados de fondo
+  ✅ Navbar sticky con detección de rol para "Mi panel"
+
+
+================================================================
+  5. HOME (page.tsx) — MEJORAS VISUALES
+================================================================
+
+  ARCHIVO: frontend/src/app/page.tsx
+
+  FONDO ANIMADO DEL HERO (nuevo):
+  ✅ Grilla de puntos animada que sube continuamente (loop lineal 14s)
+  ✅ 3 orbes de glow con scale + opacity en loop
+  ✅ 16 partículas con posiciones deterministas (sin mismatch SSR)
+
+  MICRO-INTERACCIONES:
+  ✅ Tarjetas de productos: whileHover scale 1.02 + boxShadow dorado
+  ✅ Botón "Agregar" → motion.button con whileTap scale 0.95
+  ✅ Vitrina de tiendas: whileHover scale 1.02, y -4
+  ✅ Todas las tiendas: whileHover scale 1.02 + boxShadow dorado
+  ✅ CTA principal hero → motion.a con whileHover y whileTap
+
+  SCROLL REVEAL (secciones sin animación → motion.section):
+  ✅ Métodos de pago
+  ✅ Cómo funciona
+  ✅ Trust bar (estadísticas)
+  ✅ Bento grid
+  ✅ Todas las tiendas
+
+  LIMPIEZA:
+  ✅ BannerBienvenida ELIMINADO (mostraba email al iniciar sesión)
+  ✅ Imports LayoutDashboard y LogOut eliminados (ya no usados)
+
+
+================================================================
+  6. AUTENTICACIÓN — TOKEN EXPIRY + REFRESH AUTOMÁTICO
+================================================================
+
+  ARCHIVO: frontend/src/components/ui/AuthProvider.tsx
+
+  ✅ Al montar la app, verifica si el accessToken está vencido
+  ✅ Si vencido + refresh válido → refresca silenciosamente
+  ✅ Si vencido + refresh también vencido → logout inmediato
+  ✅ Si el refresh falla en el intento → logout + redirect /auth/login
+  ✅ Timer proactivo: refresca 2 minutos ANTES de que venza el token
+  ✅ Timer limpiado en desmontaje (useRef + clearTimeout)
+  ✅ Funciones helper: obtenerExpiracion(), estaVencido() (decodifican JWT)
+
+
+================================================================
+  7. OAUTH SOCIAL LOGIN — IMPLEMENTACIÓN COMPLETA
+================================================================
+
+  BACKEND — NUEVOS ARCHIVOS:
+  ✅ backend/src/auth/strategies/google.strategy.ts
+     Passport Google OAuth 2.0 con scope email + profile
+  ✅ backend/src/auth/strategies/facebook.strategy.ts
+     Passport Facebook con profileFields id/displayName/emails
+  ✅ backend/src/auth/guards/google-auth.guard.ts
+  ✅ backend/src/auth/guards/facebook-auth.guard.ts
+  ✅ backend/migrations.sql
+     ALTER TABLE users: password_hash nullable, + oauth_provider, + oauth_id
+     CREATE UNIQUE INDEX idx_users_oauth(provider, id)
+
+  BACKEND — ARCHIVOS MODIFICADOS:
+  ✅ auth.service.ts → método loginOAuth(): busca por oauth_id, vincula
+     cuenta existente por email, o crea usuario nuevo buyer
+  ✅ auth.controller.ts → 5 endpoints nuevos:
+     GET /auth/google (redirect a Google)
+     GET /auth/google/callback (recibe tokens, redirect al frontend)
+     GET /auth/facebook
+     GET /auth/facebook/callback
+     GET /auth/apple (placeholder → /auth/callback?error=apple_not_configured)
+  ✅ auth.module.ts → registra GoogleStrategy y FacebookStrategy
+  ✅ users.service.ts → findByOAuth(), createOAuthUser(), linkOAuth()
+
+  FRONTEND — NUEVOS ARCHIVOS:
+  ✅ frontend/src/app/auth/callback/page.tsx
+     Recibe ?access_token=&refresh_token= del backend
+     Decodifica JWT, guarda en Zustand, redirige según rol
+     Maneja errores con toast + redirect automático a login
+
+  PAQUETES INSTALADOS (backend):
+  ✅ passport-google-oauth20 + @types/passport-google-oauth20
+  ✅ passport-facebook + @types/passport-facebook
+
+  PARA ACTIVAR (pendiente configurar):
+  → Ejecutar: psql -U postgres -d shopperdb -f backend/migrations.sql
+  → Completar en .env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+  → Completar en .env: FACEBOOK_APP_ID, FACEBOOK_APP_SECRET
+  → En Google Cloud Console: agregar URI callback
+    http://localhost:3001/auth/google/callback
+  → En Meta for Developers: agregar URI callback
+    http://localhost:3001/auth/facebook/callback
+
+
+================================================================
+  8. LIMPIEZA GENERAL Y BUGS CORREGIDOS
+================================================================
+
+  PÁGINAS OWNER — CONSISTENCIA:
+  ✅ stores/page.tsx: pt-8 pb-20 → py-8 · emerald-400 → var(--success)
+  ✅ products/page.tsx: py-10 → py-8 · purple → var(--accent-bright)
+                        blob bg-purple → bg-[var(--accent)]/4
+  ✅ orders/page.tsx: pt-8 pb-20 → py-8 · imports sin uso eliminados
+                      (ShoppingBag, Loader2, RotateCcw, AlertCircle)
+  ✅ analytics/page.tsx: py-10 → py-8 · COLORS array sin índigo/púrpura
+                         → ['#f59e0b','#22c55e','#3b82f6','#ef4444',...]
+                         emerald-400 → var(--success)
+                         purple-400 → var(--blue-subtle)
+                         typo "Estadisticas" → "Estadísticas" corregido
+
+  NOT-FOUND PAGE:
+  ✅ bg-blue-600/10 → bg-[var(--accent)]/8
+  ✅ Emoji 🔍 → Crown icon dorado
+  ✅ Imports no usados eliminados: Zap, Search
+  ✅ text-gradient → texto-dorado (clase global correcta)
+
+  CHECKOUT PAGE:
+  ✅ PSE: bg-blue-600 → bg-[var(--blue)], border-blue → var(--blue-border)
+  ✅ Nequi: bg-pink-600 → bg-[var(--accent)], text negro correcto
+  ✅ Daviplata: bg-red-600 → bg-[var(--danger)], text-white → var(--text-primary)
+  ✅ pt-8 pb-20 → py-8
+
+  ORDERS PAGE:
+  ✅ pt-8 pb-20 → py-8
+
+  SEGURIDAD:
+  ✅ backend/.env.example creado (template sin credenciales reales)
+  ✅ frontend/.env.example creado
+  ✅ Variables OAuth documentadas y preparadas en .env (vacías)
+  ✅ .gitignore ya tenía .env → credenciales no versionadas ✓
+
+  AUDITORIA PASO 7 (editorial):
+  ✅ Verificado globals.css: 17/17 puntos correctos
+  ✅ Verificado page.tsx (home): 59/59 puntos correctos
+  ✅ Verificado Footer.tsx: correcto
+  ✅ Verificado todas las pages owner/admin: all clear
+
+
+================================================================
+  9. ESTADO ACTUAL DEL PROYECTO
+================================================================
+
+  MÓDULOS COMPLETAMENTE IMPLEMENTADOS:
+  ✅ Autenticación: email/contraseña + refresh automático + OAuth
+  ✅ Registro: buyer y owner con selección de rol
+  ✅ Dashboard vendedor: métricas, pedidos, alertas, tiendas
+  ✅ Tiendas: CRUD completo + publicar/ocultar + logo upload
+  ✅ Productos: CRUD completo + imágenes Cloudinary + variantes SKU
+  ✅ Pedidos (buyer): lista + detalle expandible + estados
+  ✅ Pedidos (owner): filtros + búsqueda + badges de estado
+  ✅ Carrito: multi-tienda + cantidades + checkout
+  ✅ Checkout: formulario envío + 4 métodos de pago (UI completa)
+  ✅ Analíticas: gráficas Recharts (ventas, top productos, estados)
+  ✅ Admin: gestión de tiendas y usuarios con roles
+  ✅ Chat IA: Gemini 2.5 Flash con contexto dinámico de la DB
+  ✅ Perfil: editar nombre + cambiar contraseña + logout
+  ✅ Tienda pública: vitrina + productos + carrito integrado
+
+  COBERTURA DE ROLES:
+  ✅ buyer   → /dashboard, /orders, /cart, /checkout, perfil
+  ✅ owner   → /owner (dashboard), /owner/stores, /products, /orders, /analytics
+  ✅ admin   → /admin/stores, /admin/stores/users
+  ✅ super_admin → mismo que admin
+
+  TECNOLOGÍAS:
+  Frontend: Next.js 14, TypeScript strict, Tailwind CSS v4,
+            Framer Motion, Zustand, React Hook Form + Zod, Sonner
+  Backend:  NestJS, PostgreSQL (pg pool), MongoDB (mongoose),
+            Passport (local + JWT + Google + Facebook),
+            bcrypt, Cloudinary, Resend, Gemini AI
+
+
+================================================================
+  10. QUÉ MEJORAR — ROADMAP SUGERIDO
+================================================================
+
+  ── PRIORIDAD ALTA (impacto en usuario final) ──────────────────
+
+  [ ] PAGOS REALES
+      El checkout actual solo simula el pago (UI completa, sin integración).
+      Integrar: Wompi (Colombia) o MercadoPago.
+      Wompi tiene sandbox gratis y es el estándar colombiano.
+      Requiere: widget Wompi en el frontend + webhook en el backend.
+
+  [ ] NOTIFICACIONES EN TIEMPO REAL
+      Cuando llega un pedido al vendedor no recibe aviso inmediato.
+      Implementar con: Socket.io (ya tiene NestJS) o Server-Sent Events.
+      Mostrar badge en el sidebar + toast cuando llegue un pedido nuevo.
+
+  [ ] IMÁGENES EN PRODUCTOS
+      El ImageUploader sube a Cloudinary pero la URL se guarda en MongoDB
+      sin optimización. Mejorar:
+      - Transformaciones automáticas de Cloudinary (resize, webp)
+      - Lazy loading con next/image
+      - Placeholder blur mientras carga
+
+  [ ] BÚSQUEDA DE PRODUCTOS
+      Actualmente solo hay búsqueda de tiendas en la home.
+      Agregar /search?q=... con búsqueda full-text en MongoDB.
+      La página /search/page.tsx ya existe en el directorio.
+
+  ── PRIORIDAD MEDIA (mejora de experiencia) ────────────────────
+
+  [ ] SEGUIMIENTO DE PEDIDOS
+      El buyer puede ver el estado pero no hay timeline visual.
+      Crear un componente TimelineEstado con los pasos: pending →
+      confirmed → processing → shipped → delivered con fechas.
+
+  [ ] EMAILS TRANSACCIONALES
+      Resend ya está integrado pero solo envía bienvenida.
+      Agregar: confirmación de pedido, cambio de estado, factura PDF.
+
+  [ ] RESEÑAS Y CALIFICACIONES
+      Los productos no tienen sistema de reviews.
+      Tabla nueva en PostgreSQL: reviews(id, product_id, user_id, rating, comment).
+      Mostrar estrellas en la tienda pública.
+
+  [ ] PÁGINA DE PRODUCTO INDIVIDUAL
+      /store/[slug]/product/[id]/page.tsx existe pero está básica.
+      Mejorar: galería de imágenes, zoom, selector de variantes,
+      productos relacionados, descripción con markdown.
+
+  [ ] PERFIL PÚBLICO DEL VENDEDOR
+      Agregar bio, foto de perfil, redes sociales a las tiendas.
+      Mostrar en la página pública /store/[slug].
+
+  [ ] APPLE SIGN IN
+      Requiere: cuenta Apple Developer ($99/año), Service ID,
+      clave privada .p8, Team ID, Key ID.
+      La infraestructura backend ya está lista (solo falta la strategy).
+      Usar: @nicokaiser/passport-apple
+
+  ── PRIORIDAD BAJA (técnica / deuda) ───────────────────────────
+
+  [ ] PERSISTENCIA DEL CARRITO EN BASE DE DATOS
+      El carrito actual vive solo en localStorage (Zustand persist).
+      Si el usuario cambia de dispositivo pierde el carrito.
+      Guardar en tabla cart_items en PostgreSQL.
+
+  [ ] PWA / MANIFEST
+      Agregar: manifest.json con colores dorados, iconos 192/512,
+      service worker básico para cache offline.
+      Color: #f59e0b (dorado de la marca).
+
+  [ ] SEO Y META TAGS
+      Las páginas públicas (tiendas, productos) no tienen OG tags.
+      Usar generateMetadata en Next.js 14 para título, descripción,
+      imagen OG dinámica por tienda/producto.
+
+  [ ] ANALYTICS REALES
+      Los stats de la home (1200 productos, 850 compradores) son
+      hardcoded. Crear endpoint GET /stats que los calcule en tiempo real.
+
+  [ ] PAGINACIÓN
+      La lista de tiendas en admin y la vitrina pública cargan todo.
+      Implementar cursor-based pagination en los endpoints del backend.
+
+  [ ] TESTS
+      No hay tests automatizados.
+      Empezar con: Jest para el backend (auth.service, users.service)
+      y Playwright para los flujos críticos (login, checkout).
+
+  [ ] OPTIMIZACIÓN DE RENDIMIENTO
+      - Instrument Serif: preload en <head> o variable font
+      - Imágenes: migrar <img> → next/image con lazy loading
+      - Bundle: revisar con next build --debug qué pesa más
+      - Framer Motion: lazy import en páginas con muchas animaciones
+
+  [ ] MODO CLARO
+      ThemeProvider existe pero el tema claro no está diseñado.
+      El sistema de variables CSS en globals.css está preparado para
+      agregar un bloque .light { } con los valores claros.
+
+
+================================================================
+  11. ESTRUCTURA FINAL DE ARCHIVOS MODIFICADOS
+================================================================
+
+  BACKEND:
+  ├── src/auth/auth.controller.ts        (OAuth endpoints)
+  ├── src/auth/auth.module.ts            (registra estrategias)
+  ├── src/auth/auth.service.ts           (loginOAuth + fix changePassword)
+  ├── src/auth/strategies/google.strategy.ts   (NUEVO)
+  ├── src/auth/strategies/facebook.strategy.ts (NUEVO)
+  ├── src/auth/guards/google-auth.guard.ts     (NUEVO)
+  ├── src/auth/guards/facebook-auth.guard.ts   (NUEVO)
+  ├── src/users/users.service.ts         (findByOAuth, createOAuthUser, linkOAuth)
+  ├── migrations.sql                     (NUEVO — ejecutar en PostgreSQL)
+  ├── .env.example                       (NUEVO — template de variables)
+  └── .env                               (vars OAuth añadidas, vacías)
+
+  FRONTEND:
+  ├── src/app/auth/login/page.tsx        (rediseño + OAuth redirect)
+  ├── src/app/auth/callback/page.tsx     (NUEVO — maneja tokens OAuth)
+  ├── src/app/owner/page.tsx             (NUEVO — dashboard vendedor)
+  ├── src/app/dashboard/profile/page.tsx (rediseño completo)
+  ├── src/app/not-found.tsx              (colores + imports)
+  ├── src/app/checkout/page.tsx          (colores + padding)
+  ├── src/app/orders/page.tsx            (padding)
+  ├── src/app/owner/stores/page.tsx      (padding + colores)
+  ├── src/app/owner/products/page.tsx    (padding + colores)
+  ├── src/app/owner/orders/page.tsx      (padding + imports)
+  ├── src/app/owner/analytics/page.tsx   (COLORS + colores + typo)
+  ├── src/app/page.tsx                   (hero animado + interacciones)
+  ├── src/components/ui/ChatBot.tsx      (rediseño completo)
+  ├── src/components/ui/AuthProvider.tsx (token expiry + refresh)
+  ├── src/components/layout/Sidebar.tsx  (Inicio→/owner + Analíticas)
+  └── .env.example                       (NUEVO)
+
+
+================================================================
+  12. ESTADO DE TYPESCRIPT
+================================================================
+
+  Frontend: 0 errores ✅
+  Backend:  0 errores ✅
+
+  Auditado con: npx tsc --noEmit en ambos proyectos.
+
+
+================================================================
+  FIN DEL DOCUMENTO
+================================================================

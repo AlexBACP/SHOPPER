@@ -1,0 +1,407 @@
+================================================================
+  SHOPPER — TRANSFORMACIÓN EDITORIAL (PASOSs 1-6)
+  Brief: "Linear/Vercel/Stripe vibes, no AI slop"
+  Tema: Obsidian Gold + Instrument Serif + espacio editorial
+  Fecha: 2026-05-14
+================================================================
+
+  CONTEXTO
+  ────────
+  Sesión anterior: rediseño base "Obsidian Gold" (negro + dorado
+  ámbar) ya aplicado en todas las páginas. Bugs críticos corregidos.
+  Documentado en SHOPPER_RESUMEN_REDISENO.txt.
+
+  Esta sesión: transformación a nivel editorial premium. NO retoque
+  de paleta — rediseño con tipografía mixta serif+sans, espaciado
+  generoso, mucho menos ruido visual.
+
+
+================================================================
+  PASO 1 — REFACTOR DE globals.css
+================================================================
+
+  ✅ COMPLETADO
+
+  Cambios mínimos y aditivos (NADA existente fue eliminado).
+
+  AÑADIDO AL INICIO:
+    @import url('https://fonts.googleapis.com/css2?family=
+                 Instrument+Serif:ital@0;1&display=swap');
+
+  EN @theme inline:
+    --font-serif: 'Instrument Serif', Georgia, serif;
+
+  EN :root (6 variables nuevas):
+    --easing-editorial:    cubic-bezier(0.22, 1, 0.36, 1);
+    --easing-spring:       cubic-bezier(0.34, 1.56, 0.64, 1);
+    --space-section:       clamp(96px, 12vw, 200px);
+    --space-section-half:  clamp(48px, 6vw, 100px);
+    --tracking-headline:   -0.03em;
+    --lh-headline:          0.95;
+
+  :focus-visible mejorado:
+    + box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
+
+  prefers-reduced-motion:
+    Los loops infinitos (float, glow, ticker, gradient) ahora solo
+    se activan si el usuario NO ha pedido reducir movimiento.
+    Las entradas one-shot siempre se ejecutan.
+
+  NUEVAS CLASES UTILITARIAS (final del archivo):
+    .font-serif / .font-serif-italic
+    .tracking-headline / .leading-headline
+    .text-hero       — clamp(56px, 8vw, 120px) line-height 0.95
+    .text-eyebrow    — 12px uppercase tracking 0.18em zinc-500
+    .section-padding / .section-padding-half
+    .patron-grilla   — líneas 1px a 0.04 de opacidad
+    .patron-puntos   — puntos dorados a 0.06 de opacidad
+
+
+================================================================
+  PASO 2 — HERO DE LA HOME
+================================================================
+
+  ✅ COMPLETADO
+
+  ARCHIVO: frontend/src/app/page.tsx
+
+  ELIMINADO:
+    ✗ TickerAnuncios (8 items en scroll horizontal infinito)
+    ✗ ITEMS_TICKER array
+    ✗ Hero centrado con badge "marketplace preferido" + emoji
+    ✗ Blobs de fondo blur-3xl decorativos
+    ✗ Mini-stats inline en el hero
+
+  AÑADIDO:
+    ✓ BarraAnuncio — 40px, cerrable, un solo mensaje concreto
+    ✓ varContenedorHero / varElementoHero — Variants tipadas
+    ✓ METODOS_PAGO — array con 4 strings (PSE, Visa/MC, Nequi, Daviplata)
+    ✓ Parallax de tarjeta producto: useMotionValue + useSpring +
+      useTransform + useReducedMotion
+
+  IMPORTS AÑADIDOS:
+    motion → + useMotionValue, useSpring, useTransform,
+              useReducedMotion, type Variants
+    lucide → + X (botón cerrar barra anuncio)
+    lucide → − Sparkles (prohibido por brief)
+
+  ESTRUCTURA NUEVA DEL HERO:
+    grid lg:grid-cols-2 gap-12 lg:gap-16
+    Fondo: solo .patron-grilla (sin blobs, sin radiales blur)
+    Padding: .section-padding (clamp 96-200px)
+
+    COLUMNA IZQUIERDA (stagger 80ms):
+      1. Eyebrow "MARKETPLACE COLOMBIANO"
+      2. h1 "Compra de los mejores" (Geist Sans 600)
+         "vendedores del país." (Instrument Serif italic dorado)
+         Tamaño: .text-hero (clamp 56-120px) line-height 0.95
+      3. Subtítulo (max-w-520px, zinc-400, 20px)
+      4. CTAs: dorado primario con shimmer + ghost secundario
+      5. Trust strip: hr + eyebrow + 4 métodos pago (opacity-40,
+         hover-100)
+
+    COLUMNA DERECHA (hidden mobile, visible lg+):
+      Tarjeta mockup de producto colombiano
+      ("Sombrero Vueltiao Original", $189.900, 4.9★)
+      Parallax: rotateX/Y ±8°, perspective 1200px, spring 150/22
+      useReducedMotion respetado
+
+
+================================================================
+  PASO 3 — BENTO GRID
+================================================================
+
+  ✅ COMPLETADO
+
+  ELIMINADO:
+    ✗ Sección "¿Por qué elegir Shopper?" con 4 cards iguales
+    ✗ Array caracteristicas (Shield/Zap/Globe/Star)
+
+  AÑADIDO:
+    ✓ Sección Bento Grid asimétrica (grid-cols-3, row-span-2)
+
+  IMPORTS:
+    lucide → + Truck, Headphones
+    lucide → − Zap, Globe (ya no usados)
+
+  ESTRUCTURA:
+    Encabezado izquierda (no centrado):
+      eyebrow "POR QUÉ SHOPPER" + h2 32-36px
+      "Construido para comprar con confianza."
+
+    Grid 3 columnas:
+      ┌─────────────────────────────┬──────────────┐
+      │  TARJETA GRANDE             │  Vendedores  │
+      │  (col-span-2 row-span-2)    │  verificados │
+      │  Shield 48px + SSL pill +   ├──────────────┤
+      │  PSE/Visa/Nequi/Daviplata   │  Envíos      │
+      │  Pagos 100% seguros         │  rastreables │
+      ├─────────────────────────────┴──────────────┤
+      │  Headphones + Soporte 24/7 + <2h·365·98%   │
+      │  (col-span-3)                              │
+      └────────────────────────────────────────────┘
+
+    Background: var(--surface-2) (más claro que el bg)
+    Hover: y: -4 + shadow + border-accent
+    Stagger entry: 0/80/160/240ms
+    viewport: { once: true, margin: '-80px' }
+
+
+================================================================
+  PASO 4 — VITRINA DE TIENDAS (scroll-snap CSS)
+================================================================
+
+  ✅ COMPLETADO
+
+  ELIMINADO (estado JS innecesario):
+    ✗ const [heroIndice, setHeroIndice] = useState(0)
+    ✗ const timerHero = useRef(...)
+    ✗ useEffect autoavance cada 4.5s
+    ✗ funciones anteriorHero, siguienteHero
+    ✗ const tiendaHero = tiendas[heroIndice]
+    ✗ AnimatePresence + motion.div de 1 sola tienda grande
+
+  AÑADIDO:
+    ✓ const vitrinaRef = useRef<HTMLDivElement>(null)
+    ✓ scrollVitrina('prev' | 'next') — scrollBy 340*2 smooth
+
+  CARDS verticales 260-300px aspect-[4/5]:
+    • imagen con filter: brightness(0.92) saturate(1.05)
+    • escala 1.04 al hover
+    • Si no hay logo: letra inicial 120px zinc-800 + Store icon
+    • Overlay: gradient-to-t from zinc-950/85 → transparent
+      (intensifica a zinc-950/92 al hover)
+    • Eyebrow dorado "TIENDA VERIFICADA"
+    • Nombre en white font-semibold line-clamp-1
+    • CTA "Ver tienda →" con slide-up: translate-y-full →
+      translate-y-0 en 300ms
+
+  CSS scroll-snap puro:
+    [scroll-snap-type:x_mandatory]
+    [scroll-snap-align:start] en cada card
+    [scrollbar-width:none] + [&::-webkit-scrollbar]:hidden
+    Padding lateral: max(1.5rem, calc((100vw-80rem)/2+1.5rem))
+    → alineado perfectamente con max-w-7xl
+
+  Flechas: solo desktop, w-10 h-10, scrollBy smooth
+
+
+================================================================
+  PASO 5 — "CÓMO FUNCIONA" + STATS BAR
+================================================================
+
+  ✅ COMPLETADO
+
+  ── "CÓMO FUNCIONA" ──────────────────────────────────────
+
+  ELIMINADO:
+    ✗ 3 cards con border, icono 24px, número de fondo zinc-700
+    ✗ Badge gold "Simple y rápido" centrado
+    ✗ Encabezado centrado
+
+  AÑADIDO (editorial puro):
+    Encabezado izquierda — eyebrow + h2 "Comprar es tan fácil
+    como 1, 2, 3."
+
+    Layout flex-row horizontal con divisores w-px:
+      ┌─────────┬─────────┬─────────┐
+      │   01    │   02    │   03    │ ← Instrument Serif italic
+      │         │         │         │   72-96px dorado opacity 0.28
+      │  Título │  Título │  Título │ ← 28px Geist Sans
+      │         │         │         │
+      │   desc  │   desc  │   desc  │ ← 16px zinc-400
+      └─────────┴─────────┴─────────┘
+       │ div w-px │ div w-px │
+        var(--border)
+
+    flatMap pattern para insertar divisores entre items
+    (evita Fragment con key issues)
+
+    Stagger 120ms, viewport: { once: true, margin: '-80px' }
+
+  ── TRUST BAR (estilo Stripe) ────────────────────────────
+
+  ELIMINADO:
+    ✗ Array estadisticas (con íconos y bg-colors)
+    ✗ 4 cards en 2x2 grid con borders de colores
+
+  AÑADIDO:
+    STATS_BARRA = [
+      { valor: tiendas.length || 50, sufijo: '+', etiq: 'Tiendas activas' },
+      { valor: 1200, sufijo: '+', etiq: 'Productos' },
+      { valor: 850, sufijo: '+', etiq: 'Compradores' },
+      { valor: 98, sufijo: '%', etiq: 'Satisfacción' },
+    ]
+
+    Layout: flex con divisores w-px h-14 entre cada stat
+    Números: 56px font-medium text-primary (sin colores)
+    Labels: text-eyebrow (12px uppercase tracking)
+    Background: bg-[var(--surface)] plano (sin cards)
+    ContadorAnimado solo la primera vez (no infinito)
+
+  IMPORTS:
+    lucide → − Users, TrendingUp (ya no usados)
+
+
+================================================================
+  PASO 6 — CTA FINAL + FOOTER
+================================================================
+
+  ✅ COMPLETADO
+
+  ── CTA FINAL (full-bleed, negro puro) ───────────────────
+
+  ELIMINADO:
+    ✗ Card con borde dorado, rounded-3xl
+    ✗ 4 blobs decorativos (top, bottom-left, bottom-right)
+    ✗ Patrón de puntos sutiles
+    ✗ Badge "Para vendedores" con Star icon
+    ✗ Secondary link "Ya tengo cuenta →"
+    ✗ Lista de 4 garantías con CheckCircle
+
+  AÑADIDO:
+    <section style={{ backgroundColor: '#000' }}
+             className="patron-grilla">
+    Padding: var(--space-section) arriba y abajo
+
+    Headline mezclado:
+      "Abre tu tienda." (Geist Sans 600 white)
+      "El futuro es tuyo." (Instrument Serif italic dorado)
+      Tamaño: clamp(40px, 6vw, 72px), line-height 0.95
+      tracking -0.03em, max-w-3xl, centrado
+
+    UN SOLO botón grande (más grande, más prominente):
+      px-10 py-5 rounded-2xl text-lg
+      shadow-[0_0_40px_rgba(245,158,11,0.30)]
+      hover:shadow-[0_0_60px_rgba(245,158,11,0.50)]
+      btn-shimmer + Crown 5x5
+      "Abrir mi tienda gratis"
+
+    Garantías: una sola línea sin íconos
+      "Gratis para empezar · Sin tarjeta requerida · Soporte incluido"
+
+    Animación stagger: headline → botón (180ms) → garantías (350ms)
+
+  ── FOOTER (ajuste de peso visual) ───────────────────────
+
+  Archivo: frontend/src/components/layout/Footer.tsx
+
+  ESPACIADO AUMENTADO:
+    py-14 → py-20 (cuerpo principal, +43%)
+    py-6  → py-8  (pie del footer)
+    gap-10 → gap-12 (entre columnas)
+    mb-3/4 → mb-5/6 en logo y descripción
+
+  TÍTULOS DE COLUMNAS — más editoriales:
+    Antes: text-sm font-semibold text-primary
+    Ahora: text-[11px] font-semibold uppercase tracking-[0.12em]
+           text-muted (eyebrow style)
+
+  LINKS DE COLUMNAS — más sutiles:
+    Antes: hover:text-[var(--accent-bright)]
+    Ahora: hover:text-[var(--text-primary)] (más editorial)
+    Flecha: opacity-0 → opacity-60 (antes 100) en hover
+
+  REDES SOCIALES — peso reducido (lo que pidió el brief):
+    Antes: w-8 h-8 con bg-surface-2, border-zinc, rounded-lg
+           (caja completa, peso visual alto)
+    Ahora: solo icono sin caja
+           opacity-40 → opacity-90 + hover-amber
+           w-4 h-4 (de 3.5)
+    Resultado: parecen marcas de agua, no botones
+
+
+================================================================
+  ARCHIVOS MODIFICADOS EN ESTA SESIÓN
+================================================================
+
+  frontend/src/app/globals.css       (PASO 1)
+  frontend/src/app/page.tsx          (PASOSs 2-6)
+  frontend/src/components/layout/Footer.tsx  (PASO 6)
+
+
+================================================================
+  FLUJO FINAL DE LA HOME (orden de secciones)
+================================================================
+
+  1.  BarraAnuncio (40px, cerrable)
+  2.  Banner bienvenida (solo logueados)
+  3.  HERO (2 cols + tarjeta parallax + Instrument Serif)
+  4.  VITRINA TIENDAS (scroll-snap CSS, aspect 4:5)
+  5.  CARRUSEL PRODUCTOS (sin tocar, mantiene diseño)
+  6.  MÉTODOS DE PAGO (sin tocar, mantiene diseño)
+  7.  CÓMO FUNCIONA (editorial, números 96px serif italic)
+  8.  TRUST BAR (estilo Stripe, sin cards)
+  9.  BENTO GRID (Por qué Shopper, asimétrico)
+  10. TODAS LAS TIENDAS (grid + buscador, sin tocar)
+  11. CTA FINAL (full-bleed negro + mezcla serif/sans)
+  12. Footer (espacio aumentado, sociales sutiles)
+
+
+================================================================
+  PRINCIPIOS APLICADOS — verificación
+================================================================
+
+  ✅ MENOS ES MÁS — eliminados blobs, partículas, sparkles,
+     emojis decorativos, gradientes de 5 colores
+  ✅ JERARQUÍA TIPOGRÁFICA BRUTAL — hero a clamp(56px, 8vw, 120px),
+     ratio 4:1 entre títulos y body
+  ✅ ESPACIO EN BLANCO — clamp(96px, 12vw, 200px) entre secciones
+  ✅ ANIMACIONES CON PROPÓSITO — entrada (a), hover (b), guía (c)
+     Cero auto-loops decorativos excepto ticker (que ya no existe)
+  ✅ DORADO ES ACENTO 10% — la mayoría de elementos son zinc/blanco
+  ✅ CERO "AI SLOP" — Sparkles eliminado, glassmorphism solo en
+     navbar, sin bordes exagerados (rounded-3xl quitado del CTA)
+
+
+================================================================
+  PASO 7 PENDIENTE
+================================================================
+
+  El brief incluía como PASO 7: "Limpieza de bugs en /owner/*,
+  /admin/*, /cart, /checkout, /orders".
+
+  ESTADO: La mayoría de bugs YA estaban corregidos en la sesión
+  anterior (documentados en SHOPPER_RESUMEN_REDISENO.txt sección 6):
+    ✓ Navbars duplicados eliminados
+    ✓ text-white sobre dorado → text-[#09090b]
+    ✓ shadow-blue → shadow-amber
+    ✓ CartDrawer variantSku/argumentos arreglados
+    ✓ Imports no usados eliminados
+    ✓ Console.logs eliminados
+
+  QUEDA POR REVISAR en próxima sesión:
+    [ ] Verificar todas las páginas owner con el nuevo --space-section
+    [ ] Aplicar text-eyebrow en cabeceras de páginas internas
+    [ ] Aplicar font-serif-italic en algunos títulos clave del admin
+    [ ] Revisar /dashboard/profile (no existe aún)
+    [ ] /owner/analytics (no existe aún) — crear desde cero
+    [ ] ImageUploader — revisar si encaja con nuevo tema
+    [ ] ThemeToggle — verificar si hay modo claro
+    [ ] ChatBot — mover API key de Anthropic al backend
+
+
+================================================================
+  IDEAS PARA SIGUIENTE SESIÓN
+================================================================
+
+  CONTENIDO REAL FALTANTE:
+    • Reemplazar el mockup del hero con tarjetas dinámicas reales
+      (ej: usar la primera tienda real del array como hero card)
+    • Las redes sociales del footer apuntan a "#" — añadir URLs reales
+    • Email "hola@shopper.co" — verificar si es real
+    • Stats hardcoded (1200 productos, 850 compradores) — conectar
+      a /api/stats si existe endpoint
+
+  EDITORIAL ADICIONAL:
+    • Añadir testimonios reales de vendedores (sección nueva)
+    • Sección "Para vendedores" con video demo
+    • Comparativa con competidores (Mercado Libre, Linio)
+    • Página de "Historias de éxito"
+
+  TÉCNICAS PENDIENTES:
+    • View transitions API para navegar entre páginas
+    • Lazy load de imágenes en vitrina (Intersection Observer)
+    • Optimización de Instrument Serif (preload o variable font)
+
+================================================================

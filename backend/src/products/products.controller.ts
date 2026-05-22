@@ -1,7 +1,7 @@
 // src/products/products.controller.ts
 import {
   Controller, Get, Post, Patch, Delete,
-  Body, Param, UseGuards, HttpCode,
+  Body, Param, UseGuards, HttpCode, ForbiddenException,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -14,41 +14,43 @@ import { Role } from '../common/enums/role.enum';
 import { StoresService } from '../stores/stores.service';
 
 @Controller('stores/:storeId/products')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly storesService: StoresService,
   ) {}
 
+  // ── Crear producto (solo owner de esa tienda o admin) ──
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
   async create(
     @Param('storeId') storeId: string,
     @Body() dto: CreateProductDto,
     @CurrentUser() user: any,
   ) {
-    // Verifica que la tienda existe y pertenece al owner
     const store = await this.storesService.findById(storeId);
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
     if (store.owner_id !== user.id && !isAdmin)
-      throw new Error('No tienes permiso sobre esta tienda');
-
+      throw new ForbiddenException('No tienes permiso sobre esta tienda');
     return this.productsService.create(storeId, dto);
   }
 
-  // Público — cualquiera puede ver productos de una tienda
+  // ── Público: listar productos de una tienda ──
   @Get()
   findAll(@Param('storeId') storeId: string) {
     return this.productsService.findByStore(storeId);
   }
 
+  // ── Público: ver un producto ──
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productsService.findById(id);
   }
 
+  // ── Editar producto (owner de esa tienda o admin) ──
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
   async update(
     @Param('storeId') storeId: string,
@@ -59,12 +61,13 @@ export class ProductsController {
     const store = await this.storesService.findById(storeId);
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
     if (store.owner_id !== user.id && !isAdmin)
-      throw new Error('No tienes permiso sobre esta tienda');
-
+      throw new ForbiddenException('No tienes permiso sobre esta tienda');
     return this.productsService.update(id, storeId, dto);
   }
 
+  // ── Eliminar producto ──
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
   @HttpCode(204)
   async remove(
@@ -75,8 +78,7 @@ export class ProductsController {
     const store = await this.storesService.findById(storeId);
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
     if (store.owner_id !== user.id && !isAdmin)
-      throw new Error('No tienes permiso sobre esta tienda');
-
+      throw new ForbiddenException('No tienes permiso sobre esta tienda');
     return this.productsService.delete(id, storeId);
   }
 }

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sin conexión — Shopper</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #EAEDED;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 380px;
+      box-shadow: 0 4px 24px rgba(15,17,17,0.12);
+    }
+    .icon { font-size: 64px; margin-bottom: 20px; }
+    h1 { font-size: 22px; font-weight: 900; color: #0F1111; margin-bottom: 10px; }
+    p  { font-size: 14px; color: #565959; line-height: 1.6; margin-bottom: 24px; }
+    button {
+      background: linear-gradient(to bottom, #FFB84D, #FFA41C);
+      border: none;
+      border-radius: 12px;
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0F1111;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.9; }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 24px;
+      font-size: 20px;
+      font-weight: 900;
+      color: #0F1111;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #FF9900, #E68A00);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">🛍️</div>
+      Shopper
+    </div>
+    <div class="icon">📡</div>
+    <h1>Sin conexión a internet</h1>
+    <p>Parece que no tienes conexión en este momento. Revisa tu red e intenta de nuevo.</p>
+    <button onclick="window.location.reload()">🔄 Reintentar</button>
+  </div>
+</body>
+</html>

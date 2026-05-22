@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { FacebookStrategy } from './strategies/facebook.strategy';
 import { UsersModule } from '../users/users.module';
 
 @Module({
@@ -14,7 +16,13 @@ import { UsersModule } from '../users/users.module';
     PassportModule,
     JwtModule.register({}), // secrets se pasan dinámicamente en el service
   ],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    LocalStrategy,
+    GoogleStrategy,
+    FacebookStrategy,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}

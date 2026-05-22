@@ -1,362 +1,136 @@
 'use client';
-
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Store, Pencil, Trash2, Eye, EyeOff, ShoppingBag, LogOut } from 'lucide-react';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import { Store, Search, Eye, EyeOff, Trash2, CheckCircle, AlertCircle, RefreshCw, ExternalLink, Shield, Users, Package } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import api from '@/lib/api';
-import { useAuthStore } from '@/store/auth.store';
-import { Store as StoreType } from '@/types';
+
+const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.05 } } };
+const item    = { hidden:{opacity:0,y:12}, visible:{opacity:1,y:0,transition:{ease:[0.16,1,0.3,1] as [number,number,number,number],duration:0.4}} };
 
 export default function AdminStoresPage() {
-  const router = useRouter();
-  const { user, logout, hydrate } = useAuthStore();
-
-  const [stores, setStores] = useState<StoreType[]>([]);
+  const [tiendas, setTiendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingStore, setEditingStore] = useState<StoreType | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [filtro, setFiltro] = useState<'all'|'published'|'hidden'>('all');
 
-  const [form, setForm] = useState({
-    name: '',
-    slug: '',
-    description: '',
-    logo_url: '',
+  const cargar = async () => {
+    setLoading(true);
+    try { const r = await api.get('/stores'); setTiendas(r.data); }
+    catch { toast.error('Error al cargar tiendas'); } finally { setLoading(false); }
+  };
+  useEffect(() => { cargar(); }, []);
+
+  const togglePublish = async (t: any) => {
+    try {
+      await api.put(`/stores/${t.id}`, { is_published: !t.is_published });
+      toast.success(t.is_published ? 'Tienda ocultada' : '¡Tienda publicada!');
+      cargar();
+    } catch { toast.error('Error al actualizar'); }
+  };
+
+  const eliminar = async (id: string, nombre: string) => {
+    if (!confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    try { await api.delete(`/stores/${id}`); toast.success('Tienda eliminada'); cargar(); }
+    catch { toast.error('Error al eliminar'); }
+  };
+
+  const filtradas = tiendas.filter(t => {
+    const matchQ = t.name.toLowerCase().includes(busqueda.toLowerCase()) || t.slug.toLowerCase().includes(busqueda.toLowerCase());
+    const matchF = filtro === 'all' || (filtro === 'published' && t.is_published) || (filtro === 'hidden' && !t.is_published);
+    return matchQ && matchF;
   });
 
-  useEffect(() => {
-    hydrate();
-  }, []);
-
-  useEffect(() => {
-    if (!user) {
-      router.push('/auth/login');
-      return;
-    }
-    if (user.role !== 'admin' && user.role !== 'super_admin') {
-      router.push('/');
-      return;
-    }
-    fetchStores();
-  }, [user]);
-
-  const fetchStores = async () => {
-    try {
-      const res = await api.get('/stores');
-      setStores(res.data);
-    } catch {
-      toast.error('Error al cargar tiendas');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openCreate = () => {
-    setEditingStore(null);
-    setForm({ name: '', slug: '', description: '', logo_url: '' });
-    setShowModal(true);
-  };
-
-  const openEdit = (store: StoreType) => {
-    setEditingStore(store);
-    setForm({
-      name: store.name,
-      slug: store.slug,
-      description: store.description || '',
-      logo_url: store.logo_url || '',
-    });
-    setShowModal(true);
-  };
-
-  const handleSubmit = async () => {
-    if (!form.name || !form.slug) {
-      toast.error('Nombre y slug son obligatorios');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      if (editingStore) {
-        await api.patch(`/stores/${editingStore.id}`, form);
-        toast.success('Tienda actualizada');
-      } else {
-        await api.post('/stores', form);
-        toast.success('Tienda creada');
-      }
-      setShowModal(false);
-      fetchStores();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error al guardar');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const togglePublish = async (store: StoreType) => {
-    try {
-      await api.patch(`/stores/${store.id}`, { is_published: !store.is_published });
-      toast.success(store.is_published ? 'Tienda despublicada' : 'Tienda publicada');
-      fetchStores();
-    } catch {
-      toast.error('Error al cambiar estado');
-    }
-  };
-
-  const deleteStore = async (store: StoreType) => {
-    if (!confirm(`¿Eliminar la tienda "${store.name}"?`)) return;
-    try {
-      await api.delete(`/stores/${store.id}`);
-      toast.success('Tienda eliminada');
-      fetchStores();
-    } catch {
-      toast.error('Error al eliminar');
-    }
-  };
-
-  const handleLogout = () => {
-    logout();
-    router.push('/auth/login');
-  };
+  const pub    = tiendas.filter(t=>t.is_published).length;
+  const ocultas = tiendas.filter(t=>!t.is_published).length;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[#1a1a1a] bg-[#0a0a0a]/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 text-white" />
+    <div className="min-h-screen bg-[var(--bg)]">
+      <div className="bg-[var(--nav-bg)] px-4 md:px-6 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Shield className="w-6 h-6 text-[var(--accent)]"/>
+              <div><h1 className="text-xl font-bold text-white">Panel Admin — Tiendas</h1><p className="text-white/50 text-sm">{tiendas.length} tiendas en la plataforma</p></div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/stores/users" className="flex items-center gap-2 border border-white/20 text-white/70 hover:text-white hover:border-white/40 rounded-lg px-3 py-2 text-sm transition-all">
+                <Users className="w-4 h-4"/>Usuarios
+              </Link>
+              <button onClick={cargar} disabled={loading} className="flex items-center gap-2 border border-white/20 text-white/70 hover:text-white hover:border-white/40 rounded-lg px-3 py-2 text-sm transition-all">
+                <RefreshCw className={`w-4 h-4 ${loading?'animate-spin':''}`}/>Actualizar
+              </button>
+            </div>
+          </div>
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4">
+            {[{label:'Total',value:tiendas.length,color:'text-white'},{label:'Publicadas',value:pub,color:'text-green-300'},{label:'Ocultas',value:ocultas,color:'text-yellow-300'}].map(s=>(
+              <div key={s.label} className="bg-white/10 rounded-xl px-4 py-3 text-center">
+                <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                <p className="text-white/50 text-xs">{s.label}</p>
               </div>
-              <span className="font-bold text-lg">Shopper</span>
-            </Link>
-            <span className="text-zinc-600">/</span>
-            <span className="text-zinc-400 text-sm">Panel Admin</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-zinc-500">{user?.email}</span>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Contenido */}
-      <main className="max-w-7xl mx-auto px-6 pt-24 pb-16">
-
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-8"
-        >
-          <div>
-            <h1 className="text-3xl font-bold">Gestión de Tiendas</h1>
-            <p className="text-zinc-500 mt-1">{stores.length} tiendas registradas</p>
-          </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva tienda
-          </button>
-        </motion.div>
-
-        {/* Loading */}
-        {loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-[#111] border border-[#1a1a1a] rounded-2xl h-40 animate-pulse" />
             ))}
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Sin tiendas */}
-        {!loading && stores.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-24"
-          >
-            <div className="w-16 h-16 bg-[#111] rounded-2xl flex items-center justify-center mb-4 border border-[#222]">
-              <Store className="w-8 h-8 text-zinc-600" />
-            </div>
-            <h3 className="text-lg font-medium text-zinc-400 mb-2">No hay tiendas aún</h3>
-            <p className="text-zinc-600 text-sm mb-6">Crea la primera tienda del marketplace</p>
-            <button
-              onClick={openCreate}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Crear tienda
-            </button>
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"/>
+            <input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar tienda o slug..."
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
+          </div>
+          <div className="flex gap-2">
+            {([['all','Todas'],['published','Publicadas'],['hidden','Ocultas']] as const).map(([v,l])=>(
+              <button key={v} onClick={()=>setFiltro(v)}
+                className={`text-xs px-3 py-2 rounded-lg border font-medium transition-all ${filtro===v?'bg-[var(--accent)] border-[var(--accent)] text-white':'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm text-[var(--text-muted)] self-center">{filtradas.length} resultados</span>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1,2,3,4,5,6].map(i=><div key={i} className="skeleton h-44 rounded-xl"/>)}</div>
+        ) : filtradas.length === 0 ? (
+          <div className="text-center py-20"><Store className="w-12 h-12 text-[var(--border-hover)] mx-auto mb-4"/><p className="text-[var(--text-secondary)] font-medium">Sin resultados</p></div>
+        ) : (
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtradas.map(t=>(
+              <motion.div key={t.id} variants={item} className="bg-white border border-[var(--border)] rounded-xl overflow-hidden hover:shadow-md transition-all group">
+                <div className="h-24 bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center relative">
+                  {t.logo_url?<img src={t.logo_url} alt={t.name} className="w-12 h-12 rounded-xl object-cover shadow-md"/>
+                    :<div className="w-12 h-12 bg-[var(--accent)] rounded-xl flex items-center justify-center shadow-md"><span className="text-white text-xl font-black">{t.name[0]?.toUpperCase()}</span></div>}
+                  <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full border font-semibold flex items-center gap-1 ${t.is_published?'bg-green-100 text-green-700 border-green-200':'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                    {t.is_published?<><CheckCircle className="w-3 h-3"/>Publicada</>:<><AlertCircle className="w-3 h-3"/>Oculta</>}
+                  </span>
+                </div>
+                <div className="p-4">
+                  <p className="font-bold text-sm text-[var(--text-primary)] truncate mb-0.5 group-hover:text-[var(--accent-dark)] transition-colors">{t.name}</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-3">/{t.slug}</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={()=>togglePublish(t)}
+                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${t.is_published?'border-gray-200 text-gray-600 hover:bg-gray-50':'border-green-200 text-green-700 hover:bg-green-50'}`}>
+                      {t.is_published?<><EyeOff className="w-3.5 h-3.5"/>Ocultar</>:<><Eye className="w-3.5 h-3.5"/>Publicar</>}
+                    </button>
+                    <Link href={`/store/${t.slug}`} target="_blank"
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] font-medium transition-all">
+                      <ExternalLink className="w-3.5 h-3.5"/>Ver
+                    </Link>
+                    <button onClick={()=>eliminar(t.id,t.name)}
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-all ml-auto">
+                      <Trash2 className="w-3.5 h-3.5"/>Eliminar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </motion.div>
         )}
-
-        {/* Grid de tiendas */}
-        {!loading && stores.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AnimatePresence>
-              {stores.map((store, i) => (
-                <motion.div
-                  key={store.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="bg-[#111] border border-[#1a1a1a] hover:border-[#2a2a2a] rounded-2xl p-5 transition-all"
-                >
-                  {/* Header card */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-600/20 rounded-xl flex items-center justify-center border border-indigo-500/20">
-                        <Store className="w-5 h-5 text-indigo-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-white">{store.name}</h3>
-                        <span className="text-xs text-zinc-500 font-mono">/{store.slug}</span>
-                      </div>
-                    </div>
-                    {/* Badge estado */}
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      store.is_published
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20'
-                    }`}>
-                      {store.is_published ? 'Publicada' : 'Borrador'}
-                    </span>
-                  </div>
-
-                  {/* Descripción */}
-                  {store.description && (
-                    <p className="text-zinc-500 text-sm mb-4 line-clamp-2">{store.description}</p>
-                  )}
-
-                  {/* Acciones */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-[#1a1a1a]">
-                    <button
-                      onClick={() => togglePublish(store)}
-                      className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white bg-[#1a1a1a] hover:bg-[#222] px-3 py-1.5 rounded-lg transition-all"
-                    >
-                      {store.is_published ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      {store.is_published ? 'Despublicar' : 'Publicar'}
-                    </button>
-                    <button
-                      onClick={() => openEdit(store)}
-                      className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white bg-[#1a1a1a] hover:bg-[#222] px-3 py-1.5 rounded-lg transition-all"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => deleteStore(store)}
-                      className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 bg-[#1a1a1a] hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-all ml-auto"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Eliminar
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
-      </main>
-
-      {/* Modal crear/editar */}
-      <AnimatePresence>
-        {showModal && (
-          <>
-            {/* Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowModal(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-            />
-
-            {/* Modal */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
-            >
-              <div className="bg-[#111] border border-[#222] rounded-2xl p-6 shadow-2xl mx-4">
-                <h2 className="text-xl font-bold mb-6">
-                  {editingStore ? 'Editar tienda' : 'Nueva tienda'}
-                </h2>
-
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1.5 block">Nombre *</label>
-                    <input
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      placeholder="Mi Tienda"
-                      className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1.5 block">Slug *</label>
-                    <input
-                      value={form.slug}
-                      onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                      placeholder="mi-tienda"
-                      className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1.5 block">Descripción</label>
-                    <textarea
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      placeholder="Describe tu tienda..."
-                      rows={3}
-                      className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors resize-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1.5 block">URL del logo</label>
-                    <input
-                      value={form.logo_url}
-                      onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="flex-1 py-2.5 bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-zinc-400 rounded-xl text-sm transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={submitting}
-                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors"
-                  >
-                    {submitting ? 'Guardando...' : editingStore ? 'Actualizar' : 'Crear tienda'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 }

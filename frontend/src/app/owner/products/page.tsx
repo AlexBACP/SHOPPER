@@ -1,275 +1,210 @@
 'use client';
-
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Package, Pencil, Trash2, ShoppingBag, LogOut, Store, ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Package, Plus, ArrowLeft, Trash2, Edit, Eye, EyeOff, Search, AlertTriangle, CheckCircle, Store, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import api from '@/lib/api';
-import { useAuthStore } from '@/store/auth.store';
-import { Product } from '@/types';
-import { Suspense } from 'react';
+import ImageUploader from '@/components/ui/ImageUploader';
+import { useSearchParams } from 'next/navigation';
 
-function ProductsContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const storeId = searchParams.get('storeId');
-  const { user, logout, hydrate } = useAuthStore();
+const fmt = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+interface Producto { _id:string; title:string; description?:string; price:number; stock:number; sku:string; is_active:boolean; images?:string[]; store_id:string; }
+interface Tienda   { id:string; name:string; slug:string; }
 
-  const [form, setForm] = useState({
-    title: '',
-    sku: '',
-    price: '',
-    stock: '',
-    description: '',
-    images: '',
-  });
+function ModalProducto({ prod, tiendas, storeId, onClose, onSaved }: { prod:Partial<Producto>|null; tiendas:Tienda[]; storeId?:string; onClose:()=>void; onSaved:()=>void }) {
+  const [title,  setTitle]  = useState(prod?.title  ?? '');
+  const [desc,   setDesc]   = useState(prod?.description ?? '');
+  const [price,  setPrice]  = useState(String(prod?.price  ?? ''));
+  const [stock,  setStock]  = useState(String(prod?.stock  ?? ''));
+  const [sku,    setSku]    = useState(prod?.sku    ?? '');
+  const [imgUrl, setImgUrl] = useState(prod?.images?.[0] ?? '');
+  const [store,  setStore]  = useState(prod?.store_id ?? storeId ?? tiendas[0]?.id ?? '');
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => { hydrate(); }, []);
-
-  useEffect(() => {
-    if (!user) { router.push('/auth/login'); return; }
-    if (user.role !== 'owner' && user.role !== 'admin' && user.role !== 'super_admin') {
-      router.push('/');
-      return;
-    }
-    if (storeId) fetchProducts();
-    else setLoading(false);
-  }, [user, storeId]);
-
-  const fetchProducts = async () => {
+  const save = async () => {
+    if (!title.trim() || !price || !stock || !sku || !store) { toast.error('Completa todos los campos obligatorios'); return; }
+    setSaving(true);
     try {
-      const res = await api.get(`/stores/${storeId}/products`);
-      setProducts(res.data);
-    } catch {
-      toast.error('Error al cargar productos');
-    } finally {
-      setLoading(false);
-    }
+      const body = { title, description:desc, price:parseFloat(price), stock:parseInt(stock), sku, images: imgUrl ? [imgUrl] : [] };
+      if (prod?._id) await api.put(`/stores/${store}/products/${prod._id}`, body);
+      else           await api.post(`/stores/${store}/products`, body);
+      toast.success(prod?._id ? 'Producto actualizado' : 'Producto creado');
+      onSaved(); onClose();
+    } catch (e:any) { toast.error(e?.response?.data?.message ?? 'Error al guardar'); }
+    finally { setSaving(false); }
   };
-
-  const openCreate = () => {
-    setEditingProduct(null);
-    setForm({ title: '', sku: '', price: '', stock: '', description: '', images: '' });
-    setShowModal(true);
-  };
-
-  const openEdit = (product: Product) => {
-    setEditingProduct(product);
-    setForm({
-      title: product.title,
-      sku: product.sku,
-      price: String(product.price),
-      stock: String(product.stock),
-      description: product.description || '',
-      images: product.images.join(', '),
-    });
-    setShowModal(true);
-  };
-
-  const handleSubmit = async () => {
-    if (!form.title || !form.sku || !form.price || !form.stock) {
-      toast.error('Título, SKU, precio y stock son obligatorios');
-      return;
-    }
-    setSubmitting(true);
-    const payload = {
-      title: form.title,
-      sku: form.sku,
-      price: Number(form.price),
-      stock: Number(form.stock),
-      description: form.description,
-      images: form.images ? form.images.split(',').map((s) => s.trim()).filter(Boolean) : [],
-    };
-    try {
-      if (editingProduct) {
-        await api.patch(`/stores/${storeId}/products/${editingProduct._id}`, payload);
-        toast.success('Producto actualizado');
-      } else {
-        await api.post(`/stores/${storeId}/products`, payload);
-        toast.success('Producto creado');
-      }
-      setShowModal(false);
-      fetchProducts();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error al guardar');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const deleteProduct = async (product: Product) => {
-    if (!confirm(`¿Eliminar "${product.title}"?`)) return;
-    try {
-      await api.delete(`/stores/${storeId}/products/${product._id}`);
-      toast.success('Producto eliminado');
-      fetchProducts();
-    } catch {
-      toast.error('Error al eliminar');
-    }
-  };
-
-  const handleLogout = () => { logout(); router.push('/auth/login'); };
-
-  if (!storeId) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
-        <div className="text-center">
-          <Package className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Selecciona una tienda</h2>
-          <p className="text-zinc-500 text-sm mb-6">Debes acceder desde el panel de tus tiendas</p>
-          <Link
-            href="/owner/stores"
-            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm transition-colors"
-          >
-            <Store className="w-4 h-4" />
-            Ir a mis tiendas
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[#1a1a1a] bg-[#0a0a0a]/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-lg">Shopper</span>
-            </Link>
-            <span className="text-zinc-600">/</span>
-            <Link href="/owner/stores" className="text-zinc-400 text-sm hover:text-white transition-colors flex items-center gap-1">
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Mis Tiendas
-            </Link>
-            <span className="text-zinc-600">/</span>
-            <span className="text-zinc-400 text-sm">Productos</span>
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
+      <motion.div initial={{scale:0.95,y:10}} animate={{scale:1,y:0}} exit={{scale:0.95}}
+        onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-lg shadow-2xl my-4">
+        <div className="bg-[var(--nav-bg)] px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <h2 className="font-bold text-white flex items-center gap-2"><Package className="w-4 h-4 text-[var(--accent)]"/>{prod?._id?'Editar producto':'Nuevo producto'}</h2>
+          <button onClick={onClose} className="text-white/60 hover:text-white transition-colors"><X className="w-5 h-5"/></button>
+        </div>
+        <div className="p-6 space-y-4">
+          {tiendas.length > 1 && (
+            <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Tienda *</label>
+              <select value={store} onChange={e=>setStore(e.target.value)}
+                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all">
+                {tiendas.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Nombre *</label>
+            <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Ej. Sombrero Vueltiao"
+              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
+          <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Descripción</label>
+            <textarea value={desc} onChange={e=>setDesc(e.target.value)} rows={3} placeholder="Describe el producto..."
+              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all resize-none"/></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Precio COP *</label>
+              <input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder="0"
+                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
+            <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Stock *</label>
+              <input type="number" value={stock} onChange={e=>setStock(e.target.value)} placeholder="0"
+                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-zinc-500">{user?.name}</span>
-            <button onClick={handleLogout} className="text-zinc-400 hover:text-white transition-colors">
-              <LogOut className="w-4 h-4" />
+          <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">SKU *</label>
+            <input value={sku} onChange={e=>setSku(e.target.value)} placeholder="Ej. SOC-001"
+              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
+          <div>
+            <ImageUploader
+              folder="products"
+              multiple
+              label="Imágenes del producto (múltiples)"
+              value={imgUrl ? [imgUrl] : []}
+              onChange={(urls) => setImgUrl(urls[0] ?? '')}
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 py-2.5 border border-[var(--border)] rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors">Cancelar</button>
+            <button onClick={save} disabled={saving} className="flex-1 py-2.5 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold rounded-lg text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Guardar producto'}
             </button>
           </div>
         </div>
-      </nav>
+      </motion.div>
+    </motion.div>
+  );
+}
 
-      <main className="max-w-7xl mx-auto px-6 pt-24 pb-16">
+export default function OwnerProductsPage() {
+  const sp = useSearchParams();
+  const storeIdParam = sp.get('store');
+  const [tiendas,  setTiendas]  = useState<Tienda[]>([]);
+  const [productos,setProductos]= useState<(Producto & {storeName:string})[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [busqueda, setBusqueda] = useState('');
+  const [modal,    setModal]    = useState<Partial<Producto>|null|false>(false);
 
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-8"
-        >
-          <div>
-            <h1 className="text-3xl font-bold">Mis Productos</h1>
-            <p className="text-zinc-500 mt-1">{products.length} productos en esta tienda</p>
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const tr = await api.get('/stores/my');
+      setTiendas(tr.data);
+      const todos: any[] = [];
+      await Promise.all(tr.data.map(async (t:any) => {
+        try { const r = await api.get(`/stores/${t.id}/products`); r.data.forEach((p:any)=>todos.push({...p,storeName:t.name})); } catch {}
+      }));
+      setProductos(todos);
+    } catch {} finally { setLoading(false); }
+  };
+  useEffect(() => { cargar(); }, []);
+
+  const toggleActive = async (p: Producto & {storeName:string}) => {
+    try {
+      await api.put(`/stores/${p.store_id}/products/${p._id}`, { is_active: !p.is_active });
+      toast.success(p.is_active ? 'Producto ocultado' : 'Producto activado');
+      cargar();
+    } catch { toast.error('Error al actualizar'); }
+  };
+
+  const eliminar = async (p: Producto & {storeName:string}) => {
+    if (!confirm('¿Eliminar este producto?')) return;
+    try { await api.delete(`/stores/${p.store_id}/products/${p._id}`); toast.success('Eliminado'); cargar(); }
+    catch { toast.error('Error al eliminar'); }
+  };
+
+  const filtrados = productos.filter(p => p.title.toLowerCase().includes(busqueda.toLowerCase()) || p.sku.toLowerCase().includes(busqueda.toLowerCase()));
+  const stockBajo = productos.filter(p => p.is_active && p.stock <= 5);
+
+  return (
+    <div className="min-h-screen bg-[var(--bg)]">
+      <div className="bg-[var(--nav-bg)] px-4 md:px-6 py-8">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/owner" className="text-white/60 hover:text-white transition-colors"><ArrowLeft className="w-5 h-5"/></Link>
+            <div><h1 className="text-xl font-bold text-white">Productos</h1><p className="text-white/50 text-sm">{productos.length} productos en total</p></div>
           </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo producto
+          <button onClick={()=>setModal({})} className="flex items-center gap-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-bold px-4 py-2.5 rounded-lg text-sm transition-all hover:shadow-md">
+            <Plus className="w-4 h-4"/> Nuevo producto
           </button>
-        </motion.div>
+        </div>
+      </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-[#111] border border-[#1a1a1a] rounded-2xl h-48 animate-pulse" />
-            ))}
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
+        {stockBajo.length > 0 && (
+          <div className="mb-5 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0"/>
+            <p className="text-sm text-red-700 font-medium">{stockBajo.length} producto{stockBajo.length>1?'s':''} con stock ≤ 5 unidades. Actualiza tu inventario.</p>
           </div>
         )}
 
-        {/* Sin productos */}
-        {!loading && products.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-24 text-center"
-          >
-            <div className="w-16 h-16 bg-[#111] rounded-2xl flex items-center justify-center mb-4 border border-[#222]">
-              <Package className="w-8 h-8 text-zinc-600" />
-            </div>
-            <h3 className="text-lg font-medium text-zinc-400 mb-2">No hay productos aún</h3>
-            <p className="text-zinc-600 text-sm mb-6">Agrega tu primer producto a esta tienda</p>
-            <button
-              onClick={openCreate}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Crear producto
-            </button>
-          </motion.div>
-        )}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"/>
+            <input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar por nombre o SKU..."
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
+          </div>
+          <span className="text-sm text-[var(--text-muted)]">{filtrados.length} resultados</span>
+        </div>
 
-        {/* Grid productos */}
-        {!loading && products.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <AnimatePresence>
-              {products.map((product, i) => (
-                <motion.div
-                  key={product._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="bg-[#111] border border-[#1a1a1a] hover:border-[#2a2a2a] rounded-2xl overflow-hidden transition-all"
-                >
-                  {/* Imagen */}
-                  <div className="h-36 bg-gradient-to-br from-indigo-600/10 to-purple-600/10 flex items-center justify-center relative">
-                    {product.images?.[0] ? (
-                      <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <Package className="w-10 h-10 text-zinc-600" />
-                    )}
-                    <span className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${
-                      product.is_active
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                    }`}>
-                      {product.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
-
-                  <div className="p-4">
-                    <h3 className="font-semibold text-white truncate">{product.title}</h3>
-                    <p className="text-xs text-zinc-500 font-mono mb-2">SKU: {product.sku}</p>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-indigo-400 font-bold">${product.price.toLocaleString()}</span>
-                      <span className="text-xs text-zinc-500">{product.stock} en stock</span>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1,2,3,4,5,6].map(i=><div key={i} className="skeleton h-48 rounded-xl"/>)}</div>
+        ) : filtrados.length === 0 ? (
+          <div className="text-center py-20"><Package className="w-12 h-12 text-[var(--border-hover)] mx-auto mb-4"/>
+            <p className="text-[var(--text-secondary)] font-medium">{busqueda ? 'Sin resultados' : 'Sin productos aún'}</p>
+            {!busqueda && <button onClick={()=>setModal({})} className="mt-4 inline-flex items-center gap-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-all hover:shadow-md"><Plus className="w-4 h-4"/>Crear producto</button>}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <AnimatePresence mode="popLayout">
+              {filtrados.map((p,i) => (
+                <motion.div key={p._id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,scale:0.95}} transition={{delay:i*0.04}}
+                  className={`bg-white border rounded-xl overflow-hidden hover:shadow-md transition-all ${!p.is_active ? 'opacity-60' : 'border-[var(--border)]'}`}>
+                  <div className="h-36 bg-[var(--surface-2)] relative flex items-center justify-center">
+                    {p.images?.[0] ? <img src={p.images[0]} alt={p.title} className="w-full h-full object-contain p-3"/>
+                      : <Package className="w-10 h-10 text-[var(--border-hover)]"/>}
+                    <div className="absolute top-2 left-2 flex gap-1.5">
+                      {p.stock <= 5 && p.is_active && <span className="text-[10px] bg-red-100 text-red-700 border border-red-200 font-bold px-2 py-0.5 rounded-full">Stock bajo</span>}
+                      {p.stock === 0 && <span className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 font-bold px-2 py-0.5 rounded-full">Agotado</span>}
                     </div>
-
-                    <div className="flex items-center gap-2 pt-3 border-t border-[#1a1a1a]">
-                      <button
-                        onClick={() => openEdit(product)}
-                        className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white bg-[#1a1a1a] hover:bg-[#222] px-3 py-1.5 rounded-lg transition-all"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        Editar
+                    <div className="absolute top-2 right-2">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${p.is_active ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                        {p.is_active ? 'Activo' : 'Oculto'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-semibold text-[var(--text-primary)] truncate mb-0.5">{p.title}</p>
+                    <p className="text-xs text-[var(--text-muted)] mb-1">SKU: {p.sku} · {p.storeName}</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-base font-black text-[var(--text-primary)]">{fmt(p.price)}</p>
+                      <p className={`text-xs font-medium ${p.stock <= 5 ? 'text-red-600' : 'text-[var(--text-muted)]'}`}>{p.stock} en stock</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button onClick={()=>setModal(p)} className="flex-1 flex items-center justify-center gap-1 text-xs py-1.5 border border-[var(--border)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors">
+                        <Edit className="w-3 h-3"/>Editar
                       </button>
-                      <button
-                        onClick={() => deleteProduct(product)}
-                        className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 bg-[#1a1a1a] hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-all ml-auto"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Eliminar
+                      <button onClick={()=>toggleActive(p)} className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 border rounded-lg font-medium transition-all ${p.is_active ? 'border-gray-200 text-gray-600 hover:bg-gray-50' : 'border-green-200 text-green-700 hover:bg-green-50'}`}>
+                        {p.is_active ? <><EyeOff className="w-3 h-3"/>Ocultar</> : <><Eye className="w-3 h-3"/>Activar</>}
+                      </button>
+                      <button onClick={()=>eliminar(p)} className="flex items-center justify-center p-1.5 border border-red-200 rounded-lg text-red-600 hover:bg-red-50 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5"/>
                       </button>
                     </div>
                   </div>
@@ -278,123 +213,11 @@ function ProductsContent() {
             </AnimatePresence>
           </div>
         )}
-      </main>
+      </div>
 
-      {/* Modal */}
       <AnimatePresence>
-        {showModal && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowModal(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
-            >
-              <div className="bg-[#111] border border-[#222] rounded-2xl p-6 shadow-2xl mx-4 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-xl font-bold mb-6">
-                  {editingProduct ? 'Editar producto' : 'Nuevo producto'}
-                </h2>
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1.5 block">Título *</label>
-                    <input
-                      value={form.title}
-                      onChange={(e) => setForm({ ...form, title: e.target.value })}
-                      placeholder="Nombre del producto"
-                      className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1.5 block">SKU *</label>
-                    <input
-                      value={form.sku}
-                      onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                      placeholder="PROD-001"
-                      className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors font-mono"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm text-zinc-400 mb-1.5 block">Precio *</label>
-                      <input
-                        type="number"
-                        value={form.price}
-                        onChange={(e) => setForm({ ...form, price: e.target.value })}
-                        placeholder="0"
-                        className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-zinc-400 mb-1.5 block">Stock *</label>
-                      <input
-                        type="number"
-                        value={form.stock}
-                        onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                        placeholder="0"
-                        className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1.5 block">Descripción</label>
-                    <textarea
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      placeholder="Describe el producto..."
-                      rows={3}
-                      className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors resize-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 mb-1.5 block">URLs de imágenes</label>
-                    <input
-                      value={form.images}
-                      onChange={(e) => setForm({ ...form, images: e.target.value })}
-                      placeholder="https://img1.com, https://img2.com"
-                      className="w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#333] focus:border-indigo-500 rounded-xl text-white placeholder-zinc-500 text-sm outline-none transition-colors"
-                    />
-                    <p className="text-xs text-zinc-600 mt-1">Separa múltiples URLs con comas</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="flex-1 py-2.5 bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-zinc-400 rounded-xl text-sm transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={submitting}
-                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors"
-                  >
-                    {submitting ? 'Guardando...' : editingProduct ? 'Actualizar' : 'Crear producto'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
+        {modal !== false && <ModalProducto prod={modal||{}} tiendas={tiendas} storeId={storeIdParam ?? undefined} onClose={()=>setModal(false)} onSaved={cargar}/>}
       </AnimatePresence>
     </div>
-  );
-}
-
-export default function OwnerProductsPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    }>
-      <ProductsContent />
-    </Suspense>
   );
 }

@@ -13,36 +13,46 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Role } from '../common/enums/role.enum';
 
 @Controller('stores')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class StoresController {
   constructor(private readonly storesService: StoresService) {}
 
-  // Admin crea tienda para un owner específico
+  // ── Owner crea su propia tienda  /  Admin crea tienda para cualquiera ──
   @Post()
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
   create(@Body() dto: CreateStoreDto, @CurrentUser() user: any) {
     return this.storesService.create(user.id, dto);
   }
 
-  // Cualquier usuario autenticado puede ver tiendas publicadas
+  // ── Cualquier usuario (incluso sin sesión) puede listar tiendas ──
   @Get()
   findAll() {
     return this.storesService.findAll();
   }
 
-  // Owner ve sus propias tiendas
+  // ── Owner ve sus propias tiendas ──
   @Get('my')
-  @Roles(Role.OWNER)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
   findMine(@CurrentUser() user: any) {
     return this.storesService.findByOwner(user.id);
   }
 
+  // ── Ver tienda pública por slug (para SEO y página pública) ──
+  @Get('slug/:slug')
+  findBySlug(@Param('slug') slug: string) {
+    return this.storesService.findBySlug(slug);
+  }
+
+  // ── Ver tienda pública por ID (sin auth) ──
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.storesService.findById(id);
   }
 
+  // ── Editar tienda (owner de esa tienda o admin) ──
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
   update(
     @Param('id') id: string,
@@ -52,7 +62,9 @@ export class StoresController {
     return this.storesService.update(id, user.id, user.role, dto);
   }
 
+  // ── Eliminar tienda ──
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
   @HttpCode(204)
   remove(@Param('id') id: string, @CurrentUser() user: any) {
