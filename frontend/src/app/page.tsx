@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   motion, AnimatePresence, useInView,
   useMotionValue, useSpring, useTransform,
@@ -8,12 +9,12 @@ import {
 import {
   Search, Store, ArrowRight, X,
   ChevronLeft, ChevronRight, Package,
-  Star, CheckCircle, ShoppingCart,
+  CheckCircle, ShoppingCart,
   BadgeCheck, Sparkles, Crown,
 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { Store as TipoTienda, Product as TipoProducto } from '@/types';
+import { Store as TipoTienda } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
 
@@ -41,7 +42,22 @@ function ContadorSpring({ objetivo, sufijo = '', retardo = 0 }: {
   return <motion.span ref={ref}>{display}</motion.span>;
 }
 
-type ProductoDestacado = TipoProducto & { nombreTienda: string; slugTienda: string; idTienda: string };
+type ProductoDestacado = {
+  _id:               string;
+  store_id:          string;
+  title:             string;
+  description?:      string;
+  price:             number;
+  compare_at_price?: number;
+  stock:             number;
+  images:            string[];
+  sku:               string;
+  nombreTienda:      string;
+  slugTienda:        string;
+  idTienda:          string;
+  storeLogo?:        string;
+  storeDescription?: string;
+};
 
 /* ═══════════════════════════════════════════════════════════════════
    TICKER
@@ -156,7 +172,7 @@ function HeroSlider() {
 ═══════════════════════════════════════════════════════════════════ */
 const CATEGORIAS = [
   {
-    titulo: 'Moda y Ropa', href: '#tiendas',
+    titulo: 'Moda y Ropa', href: '/search?category=moda',
     bg: 'from-pink-500 to-rose-600',
     shadow: 'shadow-pink-200',
     svg: (
@@ -167,7 +183,7 @@ const CATEGORIAS = [
     ),
   },
   {
-    titulo: 'Hogar y Deco', href: '#tiendas',
+    titulo: 'Hogar y Deco', href: '/search?category=hogar',
     bg: 'from-blue-500 to-indigo-600',
     shadow: 'shadow-blue-200',
     svg: (
@@ -177,7 +193,7 @@ const CATEGORIAS = [
     ),
   },
   {
-    titulo: 'Tecnología', href: '#tiendas',
+    titulo: 'Tecnología', href: '/search?category=tecnologia',
     bg: 'from-violet-500 to-purple-700',
     shadow: 'shadow-purple-200',
     svg: (
@@ -189,7 +205,7 @@ const CATEGORIAS = [
     ),
   },
   {
-    titulo: 'Artesanías', href: '#tiendas',
+    titulo: 'Artesanías', href: '/search?category=artesanias',
     bg: 'from-orange-400 to-amber-600',
     shadow: 'shadow-orange-200',
     svg: (
@@ -200,7 +216,7 @@ const CATEGORIAS = [
     ),
   },
   {
-    titulo: 'Alimentos', href: '#tiendas',
+    titulo: 'Alimentos', href: '/search?category=alimentos',
     bg: 'from-yellow-400 to-orange-500',
     shadow: 'shadow-yellow-200',
     svg: (
@@ -212,7 +228,7 @@ const CATEGORIAS = [
     ),
   },
   {
-    titulo: 'Deportes', href: '#tiendas',
+    titulo: 'Deportes', href: '/search?category=deportes',
     bg: 'from-green-500 to-emerald-600',
     shadow: 'shadow-green-200',
     svg: (
@@ -224,7 +240,7 @@ const CATEGORIAS = [
     ),
   },
   {
-    titulo: 'Belleza', href: '#tiendas',
+    titulo: 'Belleza', href: '/search?category=belleza',
     bg: 'from-rose-500 to-pink-600',
     shadow: 'shadow-rose-200',
     svg: (
@@ -236,7 +252,7 @@ const CATEGORIAS = [
     ),
   },
   {
-    titulo: 'Niños', href: '#tiendas',
+    titulo: 'Niños', href: '/search?category=ninos',
     bg: 'from-cyan-400 to-sky-600',
     shadow: 'shadow-cyan-200',
     svg: (
@@ -281,9 +297,48 @@ function GridCategorias() {
 /* ═══════════════════════════════════════════════════════════════════
    CARRUSEL DE PRODUCTOS
 ═══════════════════════════════════════════════════════════════════ */
-function CarruselProductos({ productos }: { productos: ProductoDestacado[] }) {
+function CarruselProductos({
+  productos, cargando,
+  titulo    = 'Productos destacados',
+  subtitulo = 'Los más populares de nuestras tiendas',
+  badge,
+  gradFrom  = 'from-orange-500',
+  gradTo    = 'to-red-500',
+  shadowC   = 'shadow-orange-200',
+}: {
+  productos:  ProductoDestacado[];
+  cargando?:  boolean;
+  titulo?:    string;
+  subtitulo?: string;
+  badge?:     string;
+  gradFrom?:  string;
+  gradTo?:    string;
+  shadowC?:   string;
+}) {
   const { addItem, openCart } = useCartStore();
   const [agregadoId, setAgregadoId] = useState<string | null>(null);
+
+  // ── Portal popup del vendedor ────────────────────────────────────────────
+  type SellerPopup = { rect: DOMRect; product: ProductoDestacado; above: boolean };
+  const [sellerPopup, setSellerPopup] = useState<SellerPopup | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const openSeller = useCallback((e: React.MouseEvent<HTMLButtonElement>, product: ProductoDestacado) => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    const cardEl = (e.currentTarget as HTMLElement).closest('[data-card]');
+    const rect   = (cardEl ?? e.currentTarget).getBoundingClientRect();
+    setSellerPopup({ rect, product, above: rect.top > 220 });
+  }, []);
+  const closeSeller = useCallback(() => {
+    hideTimer.current = setTimeout(() => setSellerPopup(null), 130);
+  }, []);
+  const keepSeller = useCallback(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  }, []);
+  // ────────────────────────────────────────────────────────────────────────
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const [puedeIzq, setPuedeIzq] = useState(false);
   const [puedeDer, setPuedeDer] = useState(true);
@@ -295,31 +350,41 @@ function CarruselProductos({ productos }: { productos: ProductoDestacado[] }) {
   useEffect(() => {
     const el = scrollRef.current; if (!el) return;
     el.addEventListener('scroll', actualizarBotones, { passive: true });
+    // Cierra el popup al hacer scroll horizontal
+    el.addEventListener('scroll', () => setSellerPopup(null), { passive: true });
     actualizarBotones();
     return () => el.removeEventListener('scroll', actualizarBotones);
   }, [actualizarBotones, productos]);
-  const scroll = (dir: 'izq' | 'der') => scrollRef.current?.scrollBy({ left: dir === 'der' ? 900 : -900, behavior: 'smooth' });
+  const scroll = (dir: 'izq' | 'der') =>
+    scrollRef.current?.scrollBy({ left: dir === 'der' ? 900 : -900, behavior: 'smooth' });
   const agregar = (p: ProductoDestacado) => {
     addItem({ productId: p._id, storeId: p.idTienda, title: p.title, price: p.price, stock: p.stock, sku: p.sku, image: p.images?.[0] });
     setAgregadoId(p._id); setTimeout(() => setAgregadoId(null), 1800); openCart();
   };
-  const ref = useRef(null);
+  const ref    = useRef(null);
   const inView = useInView(ref, { once: true });
-  if (!productos.length) return null;
+  if (!productos.length && !cargando) return null;
   return (
     <section ref={ref} className="py-8 border-t border-[var(--border)] bg-white">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }}
           className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-200">
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5"><path d="M12 2l1.5 4.5H18l-3.75 2.75 1.5 4.5L12 11 8.25 13.75l1.5-4.5L6 6.5h4.5L12 2z" fill="white"/><path d="M5 18h14M7 22h10" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+            <div className={`w-10 h-10 bg-gradient-to-br ${gradFrom} ${gradTo} rounded-xl flex items-center justify-center shadow-lg ${shadowC}`}>
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+                <path d="M12 2l1.5 4.5H18l-3.75 2.75 1.5 4.5L12 11 8.25 13.75l1.5-4.5L6 6.5h4.5L12 2z" fill="white"/>
+                <path d="M5 18h14M7 22h10" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">Productos destacados</h2>
-              <p className="text-xs text-[var(--text-muted)]">Los más populares de nuestras tiendas</p>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">{titulo}</h2>
+              <p className="text-xs text-[var(--text-muted)]">{subtitulo}</p>
             </div>
-            <span className="text-xs bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold px-2.5 py-1 rounded-full shadow-sm">HOT 🔥</span>
+            {badge && (
+              <span className={`text-xs bg-gradient-to-r ${gradFrom} ${gradTo} text-white font-bold px-2.5 py-1 rounded-full shadow-sm`}>
+                {badge}
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             <button onClick={() => scroll('izq')} disabled={!puedeIzq}
@@ -334,63 +399,184 @@ function CarruselProductos({ productos }: { productos: ProductoDestacado[] }) {
         </motion.div>
 
         <div className="relative">
-          <div className={`absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none transition-opacity ${puedeIzq ? 'opacity-100' : 'opacity-0'}`} />
+          {cargando ? (
+            <div className="flex gap-4 pb-3 overflow-x-hidden">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="shrink-0 w-[210px] h-[300px] skeleton rounded-2xl" />
+              ))}
+            </div>
+          ) : (
+          <><div className={`absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none transition-opacity ${puedeIzq ? 'opacity-100' : 'opacity-0'}`} />
           <div className={`absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none transition-opacity ${puedeDer ? 'opacity-100' : 'opacity-0'}`} />
           <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
-            {productos.map((p, i) => (
-              <motion.div key={p._id}
+            {productos.map((p, i) => {
+              const descPct = p.compare_at_price && p.compare_at_price > p.price
+                ? Math.round((1 - p.price / p.compare_at_price) * 100)
+                : 0;
+              const productPage = `/store/${p.slugTienda}/product/${p._id}`;
+              return (
+              <motion.div key={p._id} data-card="true"
+                layout
                 initial={{ opacity: 0, x: 20 }} animate={inView ? { opacity: 1, x: 0 } : {}}
                 transition={{ delay: Math.min(i * 0.06, 0.4), duration: 0.45 }}
                 whileHover={{ y: -6 }}
                 className="shrink-0 w-[210px] bg-white border border-[var(--border)] rounded-2xl overflow-hidden cursor-pointer transition-all group hover:shadow-xl hover:shadow-slate-200/80 hover:border-[var(--accent-border)]">
-                <Link href={`/store/${p.slugTienda}/product/${p._id}`}>
-                  <div className="h-44 bg-gradient-to-br from-slate-50 to-slate-100 relative overflow-hidden">
+
+                {/* ── Imagen + store badge ──────────────────── */}
+                <Link href={productPage} className="block relative">
+                  <div className="h-[172px] bg-gradient-to-br from-slate-50 to-slate-100 relative overflow-hidden">
                     {p.images?.[0]
                       ? <img src={p.images[0]} alt={p.title} className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500" />
                       : <div className="w-full h-full flex items-center justify-center"><Package className="w-10 h-10 text-slate-300" /></div>}
-                    {p.stock === 0 && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><span className="text-xs font-bold text-slate-500 border border-slate-200 px-3 py-1.5 rounded-full bg-white shadow-sm">Agotado</span></div>}
-                    {p.stock > 0 && p.stock <= 5 && <div className="absolute top-2 left-2 text-[10px] bg-red-500 text-white font-bold px-2 py-1 rounded-full shadow-sm">¡Solo {p.stock}!</div>}
+
+                    {p.stock === 0 && (
+                      <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                        <span className="text-xs font-bold text-slate-500 border border-slate-200 px-3 py-1.5 rounded-full bg-white shadow-sm">Agotado</span>
+                      </div>
+                    )}
+
+                    {descPct > 0 && p.stock > 0
+                      ? <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">-{descPct}%</div>
+                      : p.stock > 0 && p.stock <= 5 &&
+                        <div className="absolute top-2 left-2 text-[10px] bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full shadow-sm">¡Solo {p.stock}!</div>
+                    }
+
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md">
                         <ShoppingCart className="w-3.5 h-3.5 text-[var(--accent-dark)]" />
                       </div>
                     </div>
-                  </div>
-                </Link>
-                <div className="p-3.5">
-                  <p className="text-[11px] text-[var(--blue)] font-semibold truncate mb-0.5 flex items-center gap-1">
-                    <Store className="w-3 h-3 shrink-0" />{p.nombreTienda}
-                  </p>
-                  <Link href={`/store/${p.slugTienda}/product/${p._id}`}>
-                    <h3 className="text-sm font-semibold text-[var(--text-primary)] line-clamp-2 leading-snug mb-2 hover:text-[var(--blue)] transition-colors min-h-[2.5rem]">{p.title}</h3>
-                  </Link>
-                  <div className="flex items-center gap-1 mb-2">
-                    {[1,2,3,4,5].map(s => <Star key={s} className="w-3 h-3 fill-amber-400 text-amber-400" />)}
-                    <span className="text-[10px] text-[var(--text-muted)] ml-0.5">(24)</span>
-                  </div>
-                  <div className="flex items-end justify-between mb-2.5">
-                    <div>
-                      <p className="text-lg font-black text-[var(--text-primary)]">{fmt(p.price)}</p>
-                      <p className="text-[10px] text-green-600 font-semibold flex items-center gap-0.5">
-                        <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3"><path d="M6 1l1.2 2.4L10 4l-2 2 .5 2.8L6 7.5l-2.5 1.3L4 6 2 4l2.8-.6L6 1z" fill="currentColor"/></svg>
-                        Envío disponible
-                      </p>
+
+                    {/* Store badge — bottom gradient overlay */}
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/65 to-transparent pt-8 pb-2 px-2">
+                      <button
+                        type="button"
+                        onMouseEnter={(e) => openSeller(e, p)}
+                        onMouseLeave={closeSeller}
+                        onClick={e => e.preventDefault()}
+                        className="flex items-center gap-1.5 bg-black/30 hover:bg-black/55 backdrop-blur-sm px-2 py-1 rounded-full text-white transition-colors max-w-full">
+                        {p.storeLogo
+                          ? <img src={p.storeLogo} alt={p.nombreTienda} className="w-4 h-4 rounded-full object-cover shrink-0 border border-white/30" />
+                          : <div className={`w-4 h-4 bg-gradient-to-br ${gradFrom} ${gradTo} rounded-full flex items-center justify-center shrink-0`}>
+                              <span className="text-[7px] font-black text-white leading-none">{p.nombreTienda[0]?.toUpperCase()}</span>
+                            </div>}
+                        <span className="text-[10px] font-semibold truncate leading-none max-w-[136px]">{p.nombreTienda}</span>
+                      </button>
                     </div>
                   </div>
+                </Link>
+
+                {/* ── Info ──────────────────────────────────── */}
+                <div className="p-3.5 pt-3">
+                  <Link href={productPage}>
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] line-clamp-2 leading-snug mb-2.5 hover:text-[var(--blue)] transition-colors min-h-[2.5rem]">{p.title}</h3>
+                  </Link>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className={`text-xl font-black leading-none ${descPct > 0 ? 'text-red-600' : 'text-[var(--text-primary)]'}`}>{fmt(p.price)}</p>
+                    {descPct > 0 ? (
+                      <div className="flex flex-col items-start leading-none gap-0.5">
+                        <span className="text-[11px] text-[var(--text-muted)] line-through">{fmt(p.compare_at_price!)}</span>
+                        <span className="text-[10px] font-black text-red-500">-{descPct}%</span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-green-600 font-semibold flex items-center gap-0.5 shrink-0">
+                        <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3"><path d="M6 1l1.2 2.4L10 4l-2 2 .5 2.8L6 7.5l-2.5 1.3L4 6 2 4l2.8-.6L6 1z" fill="currentColor"/></svg>
+                        Envío gratis
+                      </span>
+                    )}
+                  </div>
+
                   <motion.button onClick={() => agregar(p)} disabled={p.stock === 0} whileTap={{ scale: 0.96 }}
                     className={`w-full py-2 text-xs font-bold rounded-xl transition-all ${
                       agregadoId === p._id
                         ? 'bg-green-50 text-green-700 border border-green-200'
-                        : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md shadow-orange-200/60 hover:shadow-lg disabled:opacity-40'
+                        : `bg-gradient-to-r ${gradFrom} ${gradTo} hover:opacity-90 text-white shadow-md hover:shadow-lg disabled:opacity-40`
                     }`}>
-                    {agregadoId === p._id ? <><CheckCircle className="w-3.5 h-3.5 inline mr-1" />¡Agregado!</> : <><ShoppingCart className="w-3.5 h-3.5 inline mr-1" />Agregar al carrito</>}
+                    {agregadoId === p._id
+                      ? <><CheckCircle className="w-3.5 h-3.5 inline mr-1" />¡Agregado!</>
+                      : <><ShoppingCart className="w-3.5 h-3.5 inline mr-1" />Agregar al carrito</>}
                   </motion.button>
                 </div>
               </motion.div>
-            ))}
-          </div>
+            );})}
+
+          </div></>
+          )}
         </div>
       </div>
+
+      {/* ── Portal: popup flotante del vendedor ─────────────────────── */}
+      {mounted && sellerPopup && createPortal(
+        <AnimatePresence>
+          <motion.div
+            key="seller-portal"
+            initial={{ opacity: 0, y: sellerPopup.above ? 8 : -8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: 'fixed',
+              zIndex: 9999,
+              width: 252,
+              left: Math.max(8, Math.min(
+                sellerPopup.rect.left + sellerPopup.rect.width / 2 - 126,
+                window.innerWidth - 260,
+              )),
+              top: sellerPopup.above
+                ? sellerPopup.rect.top - 202
+                : sellerPopup.rect.bottom + 10,
+            }}
+            onMouseEnter={keepSeller}
+            onMouseLeave={closeSeller}
+            className="bg-white rounded-2xl border border-[var(--border)] shadow-2xl overflow-visible pointer-events-auto">
+
+            {/* Caret */}
+            {sellerPopup.above ? (
+              <div className="absolute -bottom-[9px] left-1/2 -translate-x-1/2 w-4 h-[10px] overflow-hidden">
+                <div className="w-[10px] h-[10px] bg-white border-r border-b border-[var(--border)] rotate-45 -translate-y-[5px] mx-auto shadow-sm" />
+              </div>
+            ) : (
+              <div className="absolute -top-[9px] left-1/2 -translate-x-1/2 w-4 h-[10px] overflow-hidden">
+                <div className="w-[10px] h-[10px] bg-white border-l border-t border-[var(--border)] rotate-45 translate-y-[5px] mx-auto shadow-sm" />
+              </div>
+            )}
+
+            {/* Gradient header */}
+            <div className={`bg-gradient-to-r ${gradFrom} ${gradTo} p-3.5 flex items-center gap-3 rounded-t-2xl`}>
+              {sellerPopup.product.storeLogo
+                ? <img src={sellerPopup.product.storeLogo} alt={sellerPopup.product.nombreTienda}
+                    className="w-10 h-10 rounded-xl object-cover border-2 border-white/30 shrink-0 shadow-md" />
+                : <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0 border border-white/30">
+                    <span className="text-white text-lg font-black leading-none">{sellerPopup.product.nombreTienda[0]?.toUpperCase()}</span>
+                  </div>}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-white truncate leading-tight">{sellerPopup.product.nombreTienda}</p>
+                <span className="text-[11px] text-white/85 flex items-center gap-1 mt-0.5">
+                  <BadgeCheck className="w-3 h-3 shrink-0" /> Vendedor verificado
+                </span>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-3.5">
+              {sellerPopup.product.storeDescription ? (
+                <p className="text-xs text-[var(--text-muted)] line-clamp-3 leading-relaxed mb-3">
+                  {sellerPopup.product.storeDescription}
+                </p>
+              ) : (
+                <p className="text-xs text-[var(--text-muted)] italic mb-3 opacity-60">Sin descripción disponible.</p>
+              )}
+              <Link
+                href={`/store/${sellerPopup.product.slugTienda}`}
+                className={`flex items-center justify-center gap-1.5 py-2.5 bg-gradient-to-r ${gradFrom} ${gradTo} text-white text-xs font-bold rounded-xl hover:opacity-90 active:scale-95 transition-all`}>
+                Ver tienda completa <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </motion.div>
+        </AnimatePresence>,
+        document.body,
+      )}
     </section>
   );
 }
@@ -398,7 +584,7 @@ function CarruselProductos({ productos }: { productos: ProductoDestacado[] }) {
 /* ═══════════════════════════════════════════════════════════════════
    CARRUSEL DE TIENDAS
 ═══════════════════════════════════════════════════════════════════ */
-function CarruselTiendas({ tiendas }: { tiendas: TipoTienda[] }) {
+function CarruselTiendas({ tiendas, cargando }: { tiendas: TipoTienda[]; cargando?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [puedeIzq, setPuedeIzq] = useState(false);
   const [puedeDer, setPuedeDer] = useState(true);
@@ -415,7 +601,7 @@ function CarruselTiendas({ tiendas }: { tiendas: TipoTienda[] }) {
   const scroll = (dir: 'izq' | 'der') => scrollRef.current?.scrollBy({ left: dir === 'der' ? 700 : -700, behavior: 'smooth' });
   const ref = useRef(null);
   const inView = useInView(ref, { once: true });
-  if (!tiendas.length) return null;
+  if (!tiendas.length && !cargando) return null;
   return (
     <section ref={ref} className="py-8 border-t border-[var(--border)]">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
@@ -441,7 +627,14 @@ function CarruselTiendas({ tiendas }: { tiendas: TipoTienda[] }) {
           </div>
         </motion.div>
         <div className="relative">
-          <div className={`absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-[var(--bg)] to-transparent z-10 pointer-events-none transition-opacity ${puedeIzq ? 'opacity-100' : 'opacity-0'}`} />
+          {cargando ? (
+            <div className="flex gap-4 pb-3 overflow-x-hidden">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="shrink-0 w-[230px] h-[200px] skeleton rounded-2xl" />
+              ))}
+            </div>
+          ) : (
+          <><div className={`absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-[var(--bg)] to-transparent z-10 pointer-events-none transition-opacity ${puedeIzq ? 'opacity-100' : 'opacity-0'}`} />
           <div className={`absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[var(--bg)] to-transparent z-10 pointer-events-none transition-opacity ${puedeDer ? 'opacity-100' : 'opacity-0'}`} />
           <div ref={scrollRef} className="flex gap-4 overflow-x-auto pb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
             {tiendas.map((t, i) => (
@@ -476,7 +669,8 @@ function CarruselTiendas({ tiendas }: { tiendas: TipoTienda[] }) {
                 </Link>
               </motion.div>
             ))}
-          </div>
+          </div></>
+          )}
         </div>
       </div>
     </section>
@@ -974,27 +1168,34 @@ function BannerVendedores({ user }: { user: unknown }) {
 ═══════════════════════════════════════════════════════════════════ */
 export default function PaginaPrincipal() {
   const { user } = useAuthStore();
-  const [tiendas,    setTiendas]    = useState<TipoTienda[]>([]);
-  const [destacados, setDestacados] = useState<ProductoDestacado[]>([]);
-  const [cargando,   setCargando]   = useState(true);
+  const [tiendas,     setTiendas]     = useState<TipoTienda[]>([]);
+  const [destacados,  setDestacados]  = useState<ProductoDestacado[]>([]);
+  const [ofertas,     setOfertas]     = useState<ProductoDestacado[]>([]);
+  const [presupuesto, setPresupuesto] = useState<ProductoDestacado[]>([]);
+  const [cargando,    setCargando]    = useState(true);
   const [statsReales, setStatsReales] = useState<{ tiendas: number; productos: number; compradores: number; satisfaccion: number } | null>(null);
 
   useEffect(() => {
     const cargar = async () => {
       try {
-        const res = await api.get('/stores');
-        const pub: TipoTienda[] = res.data.filter((t: TipoTienda) => t.is_published);
+        const [storesRes, destacadosRes, ofertasRes, presupuestoRes] = await Promise.all([
+          api.get('/stores'),
+          api.get('/products/search?limit=18'),
+          api.get('/products/search?hasDiscount=true&sortBy=discount&limit=12'),
+          api.get('/products/search?sortBy=price_asc&maxPrice=250000&limit=12'),
+        ]);
+        const pub: TipoTienda[] = storesRes.data.filter((t: TipoTienda) => t.is_published);
         setTiendas(pub);
-        const prods: ProductoDestacado[] = [];
-        await Promise.all(pub.slice(0, 6).map(async (tienda) => {
-          try {
-            const pr = await api.get(`/stores/${tienda.id}/products`);
-            pr.data.filter((p: TipoProducto) => p.is_active !== false).slice(0, 6).forEach((p: TipoProducto) => {
-              prods.push({ ...p, nombreTienda: tienda.name, slugTienda: tienda.slug, idTienda: tienda.id });
-            });
-          } catch { }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mapear = (arr: any[]) => arr.map((p: any) => ({
+          ...p,
+          nombreTienda: p.storeName ?? '',
+          slugTienda:   p.storeSlug ?? '',
+          idTienda:     p.store_id  ?? '',
         }));
-        setDestacados(prods.slice(0, 24));
+        setDestacados(mapear(destacadosRes.data.resultados   ?? []));
+        setOfertas(mapear(ofertasRes.data.resultados         ?? []));
+        setPresupuesto(mapear(presupuestoRes.data.resultados ?? []));
       } catch { } finally { setCargando(false); }
     };
     const cargarStats = async () => {
@@ -1015,8 +1216,24 @@ export default function PaginaPrincipal() {
       <TickerAnuncios />
       <HeroSlider />
       <GridCategorias />
-      <CarruselTiendas tiendas={tiendas} />
-      <CarruselProductos productos={destacados} />
+      <CarruselProductos
+        productos={ofertas} cargando={cargando}
+        titulo="Ofertas especiales" subtitulo="Precios rebajados por tiempo limitado"
+        badge="🏷️ OFERTA"
+        gradFrom="from-red-500" gradTo="to-rose-600" shadowC="shadow-red-200"
+      />
+      <CarruselProductos
+        productos={destacados} cargando={cargando}
+        titulo="Productos destacados" subtitulo="Los más populares de nuestras tiendas"
+        badge="HOT 🔥"
+      />
+      <CarruselProductos
+        productos={presupuesto} cargando={cargando}
+        titulo="Menos de $250.000" subtitulo="Calidad al mejor precio"
+        badge="💰 PRECIO"
+        gradFrom="from-green-500" gradTo="to-emerald-600" shadowC="shadow-green-200"
+      />
+      <CarruselTiendas tiendas={tiendas} cargando={cargando} />
       <MetodosPago />
       <StatsBar stats={STATS} />
       <ComoFunciona />
