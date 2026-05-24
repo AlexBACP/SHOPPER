@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Package, Store, X, ShoppingCart, CheckCircle,
-  Star, Filter, BadgeCheck, ChevronDown, ChevronUp,
+  Filter, BadgeCheck, ChevronDown, ChevronUp,
   SlidersHorizontal, ArrowUpDown, Heart,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -15,8 +15,19 @@ import { useWishlistStore } from '@/store/wishlist.store';
 const fmt = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 interface StoreData   { id: string; name: string; slug: string; logo_url?: string; is_published: boolean; description?: string; }
-interface ProductData { _id: string; store_id: string; title: string; description?: string; price: number; stock: number; images: string[]; sku: string; is_active: boolean; storeName?: string; storeSlug?: string; storeId?: string; }
+interface ProductData { _id: string; store_id: string; title: string; description?: string; category?: string; price: number; stock: number; images: string[]; sku: string; is_active: boolean; storeName?: string; storeSlug?: string; storeId?: string; }
 type SortKey = 'relevance' | 'price_asc' | 'price_desc' | 'name';
+
+const CATEGORIAS: { slug: string; label: string; emoji: string }[] = [
+  { slug: 'tecnologia', label: 'Tecnología',  emoji: '💻' },
+  { slug: 'moda',       label: 'Moda y Ropa', emoji: '👗' },
+  { slug: 'hogar',      label: 'Hogar y Deco',emoji: '🏠' },
+  { slug: 'artesanias', label: 'Artesanías',  emoji: '🎨' },
+  { slug: 'alimentos',  label: 'Alimentos',   emoji: '🥗' },
+  { slug: 'deportes',   label: 'Deportes',    emoji: '⚽' },
+  { slug: 'belleza',    label: 'Belleza',     emoji: '💄' },
+  { slug: 'ninos',      label: 'Niños',       emoji: '🧸' },
+];
 
 const ITEMS_POR_PAGINA = 20;
 
@@ -30,8 +41,11 @@ const SORT_OPTS: { label: string; value: SortKey }[] = [
 function SearchContent() {
   const sp     = useSearchParams();
   const router = useRouter();
-  const q      = sp.get('q') ?? '';
+  const q          = sp.get('q')        ?? '';
+  const catParam   = sp.get('category') ?? sp.get('categoria') ?? '';
+
   const [query,      setQuery]      = useState(q);
+  const [categoria,  setCategoria]  = useState(catParam);
   const [stores,     setStores]     = useState<StoreData[]>([]);
   const [products,   setProducts]   = useState<ProductData[]>([]);
   const [loading,    setLoading]    = useState(false);
@@ -47,38 +61,64 @@ function SearchContent() {
   const { addItem, openCart }               = useCartStore();
   const { toggle: wishToggle, has: wishHas } = useWishlistStore();
 
-  const buscar = useCallback(async (busq: string) => {
-    if (!busq.trim()) return;
+  const buscar = useCallback(async (busq: string, cat: string) => {
+    const hayBusqueda = busq.trim() || cat;
+    if (!hayBusqueda) return;
     setLoading(true); setPagina(1);
     try {
-      const allStores = await api.get('/stores');
-      const pub: StoreData[] = allStores.data.filter((s: StoreData) => s.is_published);
-      setStores(pub.filter(s =>
-        s.name.toLowerCase().includes(busq.toLowerCase()) ||
-        s.description?.toLowerCase().includes(busq.toLowerCase())
-      ));
-      const allProds: ProductData[] = [];
-      await Promise.all(pub.map(async (s) => {
-        try {
-          const pr = await api.get(`/stores/${s.id}/products`);
-          pr.data.filter((p: ProductData) => p.is_active !== false).forEach((p: ProductData) => {
-            const hayMatch = p.title.toLowerCase().includes(busq.toLowerCase()) ||
-                             p.description?.toLowerCase().includes(busq.toLowerCase());
-            if (hayMatch) allProds.push({ ...p, storeName: s.name, storeSlug: s.slug, storeId: s.id });
-          });
-        } catch {}
+      const params: Record<string, string> = { limit: '100', skip: '0' };
+      if (busq.trim()) params.q        = busq.trim();
+      if (cat)         params.category = cat;
+
+      const [searchRes, storesRes] = await Promise.all([
+        api.get('/products/search', { params }),
+        api.get('/stores'),
+      ]);
+
+      const resultados: ProductData[] = (searchRes.data.resultados ?? []).map((p: any) => ({
+        ...p,
+        storeId: p.store_id,
       }));
-      setProducts(allProds);
+      setProducts(resultados);
+
+      const pub: StoreData[] = storesRes.data.filter((s: StoreData) => s.is_published);
+      // Al buscar por categoría no filtramos tiendas por texto; al buscar por texto sí
+      setStores(busq.trim()
+        ? pub.filter(s =>
+            s.name.toLowerCase().includes(busq.toLowerCase()) ||
+            s.description?.toLowerCase().includes(busq.toLowerCase()),
+          )
+        : [],
+      );
     } catch {} finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { if (q) { setQuery(q); buscar(q); } }, [q]);
+  // Reaccionar a cambios en los URL params
+  useEffect(() => {
+    setQuery(q);
+    setCategoria(catParam);
+    if (q || catParam) buscar(q, catParam);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, catParam]);
 
   const onSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!query.trim()) return;
-    router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-    buscar(query);
+    if (!query.trim() && !categoria) return;
+    const params = new URLSearchParams();
+    if (query.trim()) params.set('q', query.trim());
+    if (categoria)    params.set('category', categoria);
+    router.push(`/search?${params.toString()}`);
+    buscar(query, categoria);
+  };
+
+  const cambiarCategoria = (slug: string) => {
+    const nueva = categoria === slug ? '' : slug;   // toggle
+    setCategoria(nueva);
+    const params = new URLSearchParams();
+    if (query.trim()) params.set('q', query.trim());
+    if (nueva)        params.set('category', nueva);
+    router.push(`/search?${params.toString()}`);
+    buscar(query, nueva);
   };
 
   const agregar = (p: ProductData) => {
@@ -123,17 +163,18 @@ function SearchContent() {
               Buscar
             </button>
           </form>
-          {q && !loading && (
+          {(q || catParam) && !loading && (
             <p className="text-white/60 text-sm mt-3">
-              <strong className="text-white">{totalResultados}</strong> resultados para{' '}
-              <strong className="text-[var(--accent)]">"{q}"</strong>
+              <strong className="text-white">{totalResultados}</strong> resultado{totalResultados !== 1 ? 's' : ''}
+              {q && <> para <strong className="text-[var(--accent)]">"{q}"</strong></>}
+              {catParam && <> en <strong className="text-[var(--accent)]">{CATEGORIAS.find(c => c.slug === catParam)?.label ?? catParam}</strong></>}
             </p>
           )}
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
-        {!q && (
+        {!q && !catParam && (
           <div className="text-center py-24">
             <div className="w-24 h-24 bg-white border-2 border-dashed border-[var(--border)] rounded-3xl flex items-center justify-center mx-auto mb-6">
               <Search className="w-10 h-10 text-[var(--border-hover)]" />
@@ -152,7 +193,7 @@ function SearchContent() {
           </div>
         )}
 
-        {!loading && q && (
+        {!loading && (q || catParam) && (
           <div className="space-y-6">
             {/* Tabs */}
             <div className="flex gap-2 border-b border-[var(--border)] pb-0">
@@ -197,33 +238,52 @@ function SearchContent() {
               {showFilters && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                   className="bg-white border border-[var(--border)] rounded-2xl p-5 overflow-hidden shadow-sm">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  <div className="space-y-5">
+                    {/* Categorías */}
                     <div>
-                      <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-2">
-                        Precio mínimo: <span className="text-[var(--text-primary)]">{fmt(minPrice)}</span>
-                      </label>
-                      <input type="range" min={0} max={5_000_000} step={10_000} value={minPrice}
-                        onChange={e => setMinPrice(Number(e.target.value))}
-                        className="w-full accent-[var(--accent)]" />
+                      <p className="text-sm font-semibold text-[var(--text-secondary)] mb-2">Categoría</p>
+                      <div className="flex flex-wrap gap-2">
+                        {CATEGORIAS.map(cat => (
+                          <button key={cat.slug} onClick={() => cambiarCategoria(cat.slug)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                              categoria === cat.slug
+                                ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-sm'
+                                : 'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-border)] hover:text-[var(--accent-dark)]'
+                            }`}>
+                            <span>{cat.emoji}</span>{cat.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-2">
-                        Precio máximo: <span className="text-[var(--text-primary)]">{fmt(maxPrice)}</span>
-                      </label>
-                      <input type="range" min={0} max={10_000_000} step={50_000} value={maxPrice}
-                        onChange={e => setMaxPrice(Number(e.target.value))}
-                        className="w-full accent-[var(--accent)]" />
-                    </div>
-                    <div className="flex flex-col justify-end gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={soloStock} onChange={e => setSoloStock(e.target.checked)}
-                          className="w-4 h-4 accent-[var(--accent)] rounded" />
-                        <span className="text-sm font-medium text-[var(--text-secondary)]">Solo con stock disponible</span>
-                      </label>
-                      <button onClick={() => { setMinPrice(0); setMaxPrice(10_000_000); setSoloStock(false); }}
-                        className="text-xs text-[var(--blue)] hover:underline font-medium text-left">
-                        Limpiar filtros
-                      </button>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                      <div>
+                        <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-2">
+                          Precio mínimo: <span className="text-[var(--text-primary)]">{fmt(minPrice)}</span>
+                        </label>
+                        <input type="range" min={0} max={5_000_000} step={10_000} value={minPrice}
+                          onChange={e => setMinPrice(Number(e.target.value))}
+                          className="w-full accent-[var(--accent)]" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-2">
+                          Precio máximo: <span className="text-[var(--text-primary)]">{fmt(maxPrice)}</span>
+                        </label>
+                        <input type="range" min={0} max={10_000_000} step={50_000} value={maxPrice}
+                          onChange={e => setMaxPrice(Number(e.target.value))}
+                          className="w-full accent-[var(--accent)]" />
+                      </div>
+                      <div className="flex flex-col justify-end gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={soloStock} onChange={e => setSoloStock(e.target.checked)}
+                            className="w-4 h-4 accent-[var(--accent)] rounded" />
+                          <span className="text-sm font-medium text-[var(--text-secondary)]">Solo con stock disponible</span>
+                        </label>
+                        <button onClick={() => { setMinPrice(0); setMaxPrice(10_000_000); setSoloStock(false); cambiarCategoria(categoria); }}
+                          className="text-xs text-[var(--blue)] hover:underline font-medium text-left">
+                          Limpiar filtros
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -310,7 +370,7 @@ function SearchContent() {
                               <Link href={`/store/${p.storeSlug}/product/${p._id}`}>
                                 <h3 className="text-sm font-semibold text-[var(--text-primary)] line-clamp-2 hover:text-[var(--blue)] transition-colors min-h-[2.5rem] leading-snug">{p.title}</h3>
                               </Link>
-                              <div className="flex items-center gap-0.5 my-1.5">{[1,2,3,4,5].map(s=><Star key={s} className="w-2.5 h-2.5 fill-amber-400 text-amber-400"/>)}</div>
+                              <span className="text-[10px] text-[var(--text-muted)] my-1.5 inline-block">Nuevo</span>
                               <p className="text-base font-black text-[var(--text-primary)] mb-2.5">{fmt(p.price)}</p>
                               <motion.button onClick={() => agregar(p)} disabled={p.stock === 0} whileTap={{ scale: 0.96 }}
                                 className={`w-full py-2 text-xs font-bold rounded-xl transition-all ${
@@ -377,7 +437,9 @@ function SearchContent() {
                 <div className="w-20 h-20 bg-white border-2 border-dashed border-[var(--border)] rounded-3xl flex items-center justify-center mx-auto mb-4">
                   <Search className="w-9 h-9 text-[var(--border-hover)]" />
                 </div>
-                <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Sin resultados para "{q}"</h2>
+                <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+                  Sin resultados{q ? ` para "${q}"` : ''}{catParam ? ` en ${CATEGORIAS.find(c => c.slug === catParam)?.label ?? catParam}` : ''}
+                </h2>
                 <p className="text-[var(--text-muted)] mb-6 text-sm">Intenta con otro término o explora nuestras tiendas</p>
                 <Link href="/" className="inline-flex items-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold px-6 py-3 rounded-xl transition-all hover:shadow-md text-sm">
                   Explorar tiendas

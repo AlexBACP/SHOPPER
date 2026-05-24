@@ -19,6 +19,12 @@ export class CreateProductDto {
   @IsNumber() @Min(0) price: number;
   @IsNumber() @Min(0) stock: number;
 
+  @IsOptional() @IsNumber() @Min(0)
+  compare_at_price?: number;
+
+  @IsOptional() @IsString()
+  category?: string;
+
   @IsOptional() @IsString()
   description?: string;
 

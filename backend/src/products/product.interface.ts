@@ -15,7 +15,9 @@ export interface Product {
   title: string;
   description?: string;
   sku: string;               // SKU base del producto
-  price: number;             // Precio base
+  category?:        string;  // Slug de categoría: moda | hogar | tecnologia | artesanias | alimentos | deportes | belleza | ninos
+  price:            number;  // Precio base (actual)
+  compare_at_price?: number; // Precio original antes de descuento (si existe, hay oferta)
   stock: number;             // Stock total (suma de variantes o independiente)
   images: string[];          // Array de URLs
   variants: Variant[];
