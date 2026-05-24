@@ -50,11 +50,11 @@ export class OrdersController {
     return this.ordersService.findByBuyer(user.id);
   }
 
-  // GET /orders/store/:storeId → owner ve órdenes de su tienda
+  // GET /orders/store/:storeId → owner ve órdenes de su tienda (solo si la posee)
   @Get('store/:storeId')
   @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
-  findByStore(@Param('storeId') storeId: string) {
-    return this.ordersService.findByStore(storeId);
+  findByStore(@Param('storeId') storeId: string, @CurrentUser() user: any) {
+    return this.ordersService.findByStore(storeId, user.id, user.role);
   }
 
   // GET /orders/:id → ver detalle de una orden
@@ -63,9 +63,9 @@ export class OrdersController {
     return this.ordersService.findById(id, user.id, user.role);
   }
 
-  // PATCH /orders/:id/status → admin cambia estado
+  // PATCH /orders/:id/status → admin cambia cualquier estado; owner solo processing/shipped
   @Patch(':id/status')
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,

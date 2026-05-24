@@ -21,6 +21,7 @@ import { WompiModule }   from './wompi/wompi.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { SearchModule }   from './search/search.module';
 import { ReviewsModule }  from './reviews/reviews.module';
+import { CouponsModule }  from './coupons/coupons.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ReviewsModule }  from './reviews/reviews.module';
     WebhooksModule,
     SearchModule,
     ReviewsModule,
+    CouponsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -21,18 +21,19 @@ export class ProductsService {
   async create(storeId: string, dto: CreateProductDto): Promise<Product> {
     const now = new Date();
     const product: Product = {
-      store_id: storeId,
-      title: dto.title,
-      sku: dto.sku,
-      price: dto.price,
-      stock: dto.stock,
-      description: dto.description,
-      images: dto.images ?? [],
-      variants: dto.variants ?? [],
-      attributes: dto.attributes ?? {},
-      is_active: true,
-      created_at: now,
-      updated_at: now,
+      store_id:         storeId,
+      title:            dto.title,
+      sku:              dto.sku,
+      price:            dto.price,
+      ...(dto.compare_at_price !== undefined && { compare_at_price: dto.compare_at_price }),
+      stock:            dto.stock,
+      description:      dto.description,
+      images:           dto.images ?? [],
+      variants:         dto.variants ?? [],
+      attributes:       dto.attributes ?? {},
+      is_active:        true,
+      created_at:       now,
+      updated_at:       now,
     };
 
     const result = await this.col.insertOne(product);

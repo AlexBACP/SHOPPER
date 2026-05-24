@@ -86,6 +86,44 @@ BEGIN
 END;
 $$;
 
+-- ── MIGRACIÓN 6: Campos de envío adicionales en orders ──────
+-- Teléfono de contacto y departamento (Colombia).
+-- Nullable para no romper órdenes existentes.
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS shipping_phone TEXT;
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS shipping_dept TEXT;
+
+-- ── MIGRACIÓN 7: Tabla de cupones de descuento ──────────────
+CREATE TABLE IF NOT EXISTS coupons (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  code         TEXT        NOT NULL UNIQUE,
+  discount_pct INTEGER     NOT NULL CHECK (discount_pct > 0 AND discount_pct <= 100),
+  is_active    BOOLEAN     NOT NULL DEFAULT true,
+  max_uses     INTEGER,                        -- NULL = usos ilimitados
+  times_used   INTEGER     NOT NULL DEFAULT 0,
+  expires_at   TIMESTAMPTZ,                    -- NULL = sin vencimiento
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
+
+-- Cupones iniciales de prueba
+INSERT INTO coupons (code, discount_pct, is_active) VALUES
+  ('SHOPPER10',  10, true),
+  ('BIENVENIDO', 15, true),
+  ('COLOMBIA20', 20, true)
+ON CONFLICT (code) DO NOTHING;
+
+-- ── MIGRACIÓN 8: Campos de descuento en orders ──────────────
+-- Guardar el cupón y porcentaje aplicado en cada orden.
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS coupon_code   TEXT;
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS discount_pct  INTEGER NOT NULL DEFAULT 0;
+
 -- ================================================================
 --  Migraciones aplicadas:
 --    1 — OAuth (oauth_provider, oauth_id, password_hash nullable)
@@ -93,4 +131,7 @@ $$;
 --    3 — password_resets (recuperación de contraseña)
 --    4 — orders.status incluye 'refunded'
 --    5 — orders.user_id renombrado a buyer_id (si aplica)
+--    6 — orders: shipping_phone, shipping_dept (nullable)
+--    7 — coupons (tabla + 3 cupones iniciales)
+--    8 — orders: coupon_code, discount_pct
 -- ================================================================

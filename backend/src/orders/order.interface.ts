@@ -26,9 +26,13 @@ export interface Order {
   status:           OrderStatus;
   total:            number;
   shipping_name?:   string;
+  shipping_phone?:  string;
   shipping_address?: string;
   shipping_city?:   string;
+  shipping_dept?:   string;
   shipping_notes?:  string;
+  coupon_code?:     string | null;
+  discount_pct?:    number;
   created_at:       Date;
   updated_at:       Date;
   items?:           OrderItem[];

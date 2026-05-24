@@ -4,10 +4,8 @@ import {
 } from '@nestjs/common';
 import { Pool } from 'pg';
 import { MongoClient, ObjectId } from 'mongodb';
-import Redis from 'ioredis';
 import { POSTGRES_POOL } from '../database/postgres/postgres.provider';
 import { MONGO_CLIENT }  from '../database/mongodb/mongodb.provider';
-import { REDIS_CLIENT }  from '../redis/redis.provider';
 import { EmailService }         from '../email/email.service';
 import { UsersService }         from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -21,7 +19,6 @@ export class OrdersService {
   constructor(
     @Inject(POSTGRES_POOL) private readonly pool:  Pool,
     @Inject(MONGO_CLIENT)  private readonly mongo: MongoClient,
-    @Inject(REDIS_CLIENT)  private readonly redis: Redis,
     private readonly emailService:         EmailService,
     private readonly usersService:         UsersService,
     private readonly notificationsService: NotificationsService,
@@ -32,24 +29,13 @@ export class OrdersService {
     return this.mongo.db().collection('products');
   }
 
-  private async getCart(cartId: string): Promise<{ items: any[]; updatedAt: string }> {
-    const raw = await this.redis.get(`cart:${cartId}`);
-    if (!raw) return { items: [], updatedAt: new Date().toISOString() };
-    return JSON.parse(raw);
-  }
-
-  private async clearCart(cartId: string): Promise<void> {
-    await this.redis.del(`cart:${cartId}`);
-  }
-
   // ── Checkout ──────────────────────────────────────────
 
-  async checkout(buyerId: string, dto: CreateOrderDto): Promise<Order> {
-    const cart = await this.getCart(buyerId);
-    if (cart.items.length === 0) throw new BadRequestException('El carrito está vacío');
+  async checkout(buyerId: string, dto: CreateOrderDto): Promise<Order & { coupon_applied: boolean }> {
+    if (!dto.items?.length) throw new BadRequestException('El carrito está vacío');
 
-    // 1. Validar stock
-    for (const item of cart.items) {
+    // 1. Validar stock contra MongoDB (fuente de verdad del inventario)
+    for (const item of dto.items) {
       let product: any;
       try {
         product = await this.products.findOne({ _id: new ObjectId(item.productId) });
@@ -62,25 +48,64 @@ export class OrdersService {
         throw new BadRequestException(`Stock insuficiente para "${item.title}". Disponible: ${product.stock}`);
     }
 
-    // 2. Total
-    const total = cart.items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);
+    // 2. Validar cupón en backend (fuente de verdad — no confiar en el frontend)
+    let discountPct = 0;
+    let couponCode: string | null = null;
+    if (dto.coupon_code) {
+      const code = dto.coupon_code.toUpperCase().trim();
+      const { rows: couponRows } = await this.pool.query(
+        `SELECT discount_pct FROM coupons
+         WHERE code = $1
+           AND is_active = true
+           AND (max_uses IS NULL OR times_used < max_uses)
+           AND (expires_at IS NULL OR expires_at > NOW())`,
+        [code],
+      );
+      if (couponRows[0]) {
+        discountPct = couponRows[0].discount_pct as number;
+        couponCode  = code;
+      }
+      // Si el código no existe simplemente se ignora — no lanzamos error
+      // para no bloquear el checkout por un cupón que venció justo ahora
+    }
 
-    // 3. Transacción PostgreSQL
+    // 3. Total con descuento + IVA calculado en backend
+    const IVA_RATE  = 0.19;
+    const subtotal  = dto.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const discount  = subtotal * (discountPct / 100);
+    const baseNet   = subtotal - discount;
+    const total     = baseNet + baseNet * IVA_RATE;
+
+    // 4. Transacción PostgreSQL — orden + items atómicos
     const client = await this.pool.connect();
     let order: Order;
     try {
       await client.query('BEGIN');
 
       const { rows: orderRows } = await client.query(
-        `INSERT INTO orders (buyer_id, status, total, shipping_name, shipping_address, shipping_city, shipping_notes)
-         VALUES ($1, 'pending', $2, $3, $4, $5, $6) RETURNING *`,
-        [buyerId, total, dto.shipping_name, dto.shipping_address, dto.shipping_city, dto.shipping_notes ?? null],
+        `INSERT INTO orders
+           (buyer_id, status, total,
+            shipping_name, shipping_phone,
+            shipping_address, shipping_city, shipping_dept,
+            shipping_notes, coupon_code, discount_pct)
+         VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [
+          buyerId, total,
+          dto.shipping_name,    dto.shipping_phone   ?? null,
+          dto.shipping_address, dto.shipping_city,
+          dto.shipping_dept    ?? null,
+          dto.shipping_notes   ?? null,
+          couponCode,
+          discountPct,
+        ],
       );
       order = orderRows[0];
 
-      for (const item of cart.items) {
+      for (const item of dto.items) {
         await client.query(
-          `INSERT INTO order_items (order_id, store_id, product_id, title, sku, price, quantity, image)
+          `INSERT INTO order_items
+             (order_id, store_id, product_id, title, sku, price, quantity, image)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [order.id, item.storeId, item.productId, item.title, item.sku, item.price, item.quantity, item.image ?? null],
         );
@@ -94,25 +119,31 @@ export class OrdersService {
       client.release();
     }
 
-    // 4. Decrementar stock en MongoDB
-    for (const item of cart.items) {
+    // 5. Incrementar uso del cupón (fuera de TX — fallo aquí no revierte la orden)
+    if (couponCode) {
+      await this.pool.query(
+        'UPDATE coupons SET times_used = times_used + 1 WHERE code = $1',
+        [couponCode],
+      ).catch(() => null);
+    }
+
+    // 6. Decrementar stock en MongoDB (fuera de la TX de PG — aceptamos eventual consistency)
+    for (const item of dto.items) {
       await this.products.updateOne(
         { _id: new ObjectId(item.productId) },
         { $inc: { stock: -item.quantity }, $set: { updated_at: new Date() } },
       );
     }
 
-    // 5. Vaciar carrito
-    await this.clearCart(buyerId);
-
-    // 6. Obtener orden completa con items
+    // 7. Obtener orden completa con items
     const fullOrder = await this.findById(order.id, buyerId);
 
-    // 7. Enviar emails + notificaciones en tiempo real (sin await)
+    // 8. Emails + notificaciones WebSocket (fire-and-forget)
     this.sendOrderEmails(fullOrder, buyerId, dto).catch(() => null);
     this.emitirNotificacionesPedido(fullOrder, dto.shipping_name, dto.shipping_city).catch(() => null);
 
-    return fullOrder;
+    // coupon_applied = true si el código llegó Y era válido; false si fue ignorado
+    return { ...fullOrder, coupon_applied: couponCode !== null };
   }
 
   // ── Envío de emails post-checkout ────────────────────
@@ -219,7 +250,19 @@ export class OrdersService {
     return rows;
   }
 
-  async findByStore(storeId: string): Promise<any[]> {
+  async findByStore(storeId: string, requesterId: string, requesterRole: string): Promise<any[]> {
+    // Verificar que el solicitante es dueño de la tienda (a menos que sea admin)
+    const isAdmin = requesterRole === 'admin' || requesterRole === 'super_admin';
+    if (!isAdmin) {
+      const { rows: storeRows } = await this.pool.query(
+        'SELECT owner_id FROM stores WHERE id = $1',
+        [storeId],
+      );
+      if (!storeRows[0]) throw new NotFoundException('Tienda no encontrada');
+      if (storeRows[0].owner_id !== requesterId)
+        throw new ForbiddenException('No tienes acceso a las órdenes de esta tienda');
+    }
+
     const { rows } = await this.pool.query(
       `SELECT DISTINCT o.*, oi.store_id FROM orders o
        JOIN order_items oi ON oi.order_id = o.id
@@ -315,11 +358,39 @@ export class OrdersService {
     return { orderId: fullOrder.id, urlPago: urlCheckout, wompiConfigurado: true };
   }
 
-  async updateStatus(orderId: string, dto: UpdateOrderStatusDto, _requesterId: string, requesterRole: string): Promise<Order> {
+  async updateStatus(orderId: string, dto: UpdateOrderStatusDto, requesterId: string, requesterRole: string): Promise<Order> {
     const { rows } = await this.pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
     if (!rows[0]) throw new NotFoundException('Orden no encontrada');
+
     const isAdmin = requesterRole === 'admin' || requesterRole === 'super_admin';
-    if (!isAdmin) throw new ForbiddenException('Solo los administradores pueden cambiar el estado');
+    const isOwner = requesterRole === 'owner';
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('No tienes permiso para cambiar el estado de órdenes');
+    }
+
+    if (isOwner) {
+      // El owner solo puede marcar processing o shipped
+      const OWNER_ALLOWED: string[] = ['processing', 'shipped'];
+      if (!OWNER_ALLOWED.includes(dto.status)) {
+        throw new ForbiddenException(
+          `Como vendedor solo puedes cambiar el estado a: ${OWNER_ALLOWED.join(', ')}`,
+        );
+      }
+
+      // Verificar que el owner tiene al menos un item en esta orden
+      const { rows: ownerItems } = await this.pool.query(
+        `SELECT oi.id FROM order_items oi
+         JOIN stores s ON s.id = oi.store_id
+         WHERE oi.order_id = $1 AND s.owner_id = $2
+         LIMIT 1`,
+        [orderId, requesterId],
+      );
+      if (!ownerItems.length) {
+        throw new ForbiddenException('Esta orden no contiene productos de tu tienda');
+      }
+    }
+
     const { rows: updated } = await this.pool.query(
       'UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
       [dto.status, orderId],
