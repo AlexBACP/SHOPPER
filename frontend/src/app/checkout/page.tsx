@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useCartStore, IVA_RATE } from '@/store/cart.store';
+import { useCartStore } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -133,32 +133,32 @@ export default function CheckoutPage() {
     if (!shippingData) return;
     setStep('processing'); setError('');
     try {
-      const groups: Record<string, typeof items> = {};
-      items.forEach(it => { if (!groups[it.storeId]) groups[it.storeId] = []; groups[it.storeId].push(it); });
-      const ids: string[] = [];
-      for (const [storeId, storeItems] of Object.entries(groups)) {
-        const res = await api.post('/orders', {
-          store_id:       storeId,
-          payment_method: payMethod,
-          coupon_code:    coupon,
-          discount_pct:   discount,
-          iva_rate:       IVA_RATE,
-          subtotal:       sub,
-          iva_amount:     iva,
-          discount_amount:disc,
-          total:          cartTotal,
-          items: storeItems.map(i => ({
-            product_id: i.productId,
-            quantity:   i.quantity,
-            price:      i.price,
-            sku:        i.sku,
-            title:      i.title,
-          })),
-          ...shippingData,
-        });
-        ids.push(res.data?.id ?? res.data?._id ?? '');
+      const res = await api.post('/orders/checkout', {
+        ...shippingData,
+        payment_method: payMethod,
+        coupon_code: coupon ?? undefined,
+        items: items.map(i => ({
+          productId: i.productId,
+          storeId:   i.storeId,
+          title:     i.title,
+          sku:       i.sku,
+          price:     i.price,
+          quantity:  i.quantity,
+          image:     i.image,
+        })),
+      });
+
+      // Si el usuario tenía un cupón pero el backend lo descartó (venció o se agotó
+      // justo entre que lo aplicó en el carrito y llegó al checkout) avisamos.
+      if (coupon && res.data?.coupon_applied === false) {
+        toast.warning(
+          `El cupón "${coupon}" ya no es válido (venció o alcanzó su límite). ` +
+          'Tu pedido fue procesado sin descuento.',
+          { duration: 6000 },
+        );
       }
-      setOrderId(ids[0] ?? 'ORD-' + Date.now().toString(36).toUpperCase());
+
+      setOrderId(res.data?.id ?? 'ORD-' + Date.now().toString(36).toUpperCase());
       clearCart();
       setStep('success');
     } catch (e: unknown) {

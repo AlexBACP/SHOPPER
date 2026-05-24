@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { IVA_RATE } from '@/config/constants';
+import api from '@/lib/api';
 
 export { IVA_RATE };
 
@@ -26,7 +27,7 @@ interface CartStore {
   clearCart:      () => void;
   openCart:       () => void;
   closeCart:      () => void;
-  applyCoupon:    (code: string) => boolean;
+  applyCoupon:    (code: string) => Promise<{ ok: boolean; message?: string }>;
   removeCoupon:   () => void;
   subtotal:       () => number;
   ivaAmount:      () => number;
@@ -35,12 +36,6 @@ interface CartStore {
   count:          () => number;
 }
 
-// Cupones de demo — en producción vienen del backend
-const DEMO_COUPONS: Record<string, number> = {
-  SHOPPER10:   10,
-  BIENVENIDO:  15,
-  COLOMBIA20:  20,
-};
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -87,11 +82,21 @@ export const useCartStore = create<CartStore>()(
       openCart:     () => set({ isOpen: true }),
       closeCart:    () => set({ isOpen: false }),
 
-      applyCoupon: (code) => {
-        const pct = DEMO_COUPONS[code.toUpperCase().trim()];
-        if (!pct) return false;
-        set({ coupon: code.toUpperCase().trim(), discount: pct });
-        return true;
+      applyCoupon: async (code) => {
+        try {
+          const res = await api.post('/coupons/validate', { code });
+          if (res.data?.valid) {
+            set({ coupon: res.data.code, discount: res.data.discount });
+            return { ok: true };
+          }
+          return { ok: false, message: res.data?.message ?? 'Cupón inválido o expirado' };
+        } catch (err: unknown) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status === 401) {
+            return { ok: false, message: 'Debes iniciar sesión para aplicar cupones' };
+          }
+          return { ok: false, message: 'No se pudo verificar el cupón. Intenta de nuevo.' };
+        }
       },
 
       removeCoupon: () => set({ coupon: null, discount: 0 }),
