@@ -1,13 +1,13 @@
 // ── Categorías ────────────────────────────────────────────────────────
 export const CATEGORIES = [
-  { label: 'Moda y Ropa',  href: '/search?categoria=moda'        },
-  { label: 'Hogar y Deco', href: '/search?categoria=hogar'       },
-  { label: 'Tecnología',   href: '/search?categoria=tecnologia'  },
-  { label: 'Artesanías',   href: '/search?categoria=artesanias'  },
-  { label: 'Alimentos',    href: '/search?categoria=alimentos'   },
-  { label: 'Deportes',     href: '/search?categoria=deportes'    },
-  { label: 'Belleza',      href: '/search?categoria=belleza'     },
-  { label: 'Niños',        href: '/search?categoria=ninos'       },
+  { label: 'Moda y Ropa',  href: '/search?q=moda'        },
+  { label: 'Hogar y Deco', href: '/search?q=hogar'       },
+  { label: 'Tecnología',   href: '/search?q=tecnologia'  },
+  { label: 'Artesanías',   href: '/search?q=artesanias'  },
+  { label: 'Alimentos',    href: '/search?q=alimentos'   },
+  { label: 'Deportes',     href: '/search?q=deportes'    },
+  { label: 'Belleza',      href: '/search?q=belleza'     },
+  { label: 'Niños',        href: '/search?q=ninos'       },
 ] as const;
 
 // ── Links footer ──────────────────────────────────────────────────────

@@ -142,7 +142,7 @@ function DashboardComprador({ nombre }: { nombre: string }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={v => fmtS(v)} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(v: number) => [fmt(v), 'Gasto']} contentStyle={{ borderRadius: 12, border: '1px solid var(--border)', fontSize: 12 }} />
+              <Tooltip formatter={(v) => [fmt(v as number), 'Gasto']} contentStyle={{ borderRadius: 12, border: '1px solid var(--border)', fontSize: 12 }} />
               <Area type="monotone" dataKey="total" stroke="#FF9900" strokeWidth={2.5} fill="url(#gradCompras)" dot={{ r: 4, fill: '#FF9900', strokeWidth: 0 }} />
             </AreaChart>
           </ResponsiveContainer>

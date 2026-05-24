@@ -40,12 +40,17 @@ export default function OwnerOrdersPage() {
   };
   useEffect(() => { cargar(); }, []);
 
+  // Estados que el owner puede asignar (el backend también lo valida)
+  const OWNER_ESTADOS = ['processing', 'shipped'];
+
   const avanzarEstado = async (pedido: any) => {
     const idx = FLUJO.indexOf(pedido.status);
-    if (idx < 0 || idx >= FLUJO.length-1) return;
+    if (idx < 0 || idx >= FLUJO.length - 1) return;
+    const siguienteEstado = FLUJO[idx + 1];
+    if (!OWNER_ESTADOS.includes(siguienteEstado)) return;
     try {
-      await api.put(`/orders/${pedido.id}/status`, { status: FLUJO[idx+1] });
-      toast.success(`Pedido actualizado a: ${ESTADOS[FLUJO[idx+1]].label}`);
+      await api.patch(`/orders/${pedido.id}/status`, { status: siguienteEstado });
+      toast.success(`Pedido actualizado a: ${ESTADOS[siguienteEstado].label}`);
       cargar();
     } catch { toast.error('Error al actualizar estado'); }
   };
@@ -100,7 +105,8 @@ export default function OwnerOrdersPage() {
               const e = ESTADOS[p.status] ?? ESTADOS.pending;
               const abierto = expandido === p.id;
               const idx = FLUJO.indexOf(p.status);
-              const puedeAvanzar = idx >= 0 && idx < FLUJO.length-1;
+              const siguienteEstado = FLUJO[idx + 1];
+              const puedeAvanzar = idx >= 0 && idx < FLUJO.length - 1 && OWNER_ESTADOS.includes(siguienteEstado);
               return (
                 <motion.div key={p.id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}
                   className="bg-white border border-[var(--border)] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">

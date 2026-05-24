@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, CheckCircle, Package, Store, Tag, Star, AlertTriangle, Share2, ChevronLeft, ChevronRight, Plus, Minus, Truck, Shield, RotateCcw, ZoomIn, Heart, MessageCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, CheckCircle, Package, Store, Tag, AlertTriangle, Share2, ChevronLeft, ChevronRight, Plus, Minus, Truck, Shield, RotateCcw, ZoomIn, Heart, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -36,12 +36,11 @@ export default function ProductPage() {
   useEffect(() => {
     (async () => {
       try {
-        const stores = await api.get('/stores');
-        const s = stores.data.find((st: StoreType) => st.slug === slug);
-        if (!s) { setNotFound(true); return; }
+        const storeRes = await api.get(`/stores/slug/${slug}`);
+        const s: StoreType = storeRes.data;
         setStore(s);
-        const pr = await api.get(`/stores/${s.id}/products`);
-        const p = pr.data.find((x: Product) => x._id === id);
+        const productRes = await api.get(`/stores/${s.id}/products/${id}`);
+        const p: Product = productRes.data;
         if (!p || p.is_active === false) { setNotFound(true); return; }
         setProduct(p);
       } catch { setNotFound(true); } finally { setLoading(false); }
@@ -159,8 +158,7 @@ export default function ProductPage() {
               </div>
               <h1 className="text-xl font-bold text-[var(--text-primary)] leading-tight mb-3">{product.title}</h1>
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex items-center gap-0.5">{[1,2,3,4,5].map(s=><Star key={s} className="w-3.5 h-3.5 fill-orange-400 text-orange-400"/>)}</div>
-                <span className="text-sm text-[var(--text-muted)]">(Nuevo)</span>
+                <span className="text-xs text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] px-2 py-0.5 rounded-full">Nuevo</span>
               </div>
             </div>
 
@@ -239,7 +237,7 @@ export default function ProductPage() {
                 </button>
               )}
               {product && (
-                <a href={`https://wa.me/?text=¡Mira este producto en Shopper! ${encodeURIComponent(product.title + ' - ' + window?.location?.href ?? '')}`}
+                <a href={`https://wa.me/?text=¡Mira este producto en Shopper! ${encodeURIComponent(product.title + ' - ' + (window?.location?.href ?? ''))}`}
                   target="_blank" rel="noopener noreferrer"
                   className="w-12 flex items-center justify-center border border-green-200 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-all"
                   title="Compartir en WhatsApp">
@@ -260,7 +258,7 @@ export default function ProductPage() {
 
         {/* Reseñas */}
         <div className="mt-6">
-          <SeccionResenas productId={product._id} storeId={store.id} />
+          <SeccionResenas productId={product._id} />
         </div>
       </div>
 

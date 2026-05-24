@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { User } from '@/types';
 import { COOKIE_CONFIG } from '@/config/constants';
+import { useCartStore } from './cart.store';
+import { useWishlistStore } from './wishlist.store';
 
 interface AuthState {
   user:         User | null;
@@ -37,6 +39,10 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         clearAuthCookie();
         set({ user: null, accessToken: null, refreshToken: null });
+        // Limpiar datos de sesión del usuario al cerrar sesión
+        // getState() funciona fuera de React — patrón estándar de Zustand
+        useCartStore.getState().clearCart();
+        useWishlistStore.getState().clear();
       },
 
       isAuthenticated: () => !!get().accessToken,

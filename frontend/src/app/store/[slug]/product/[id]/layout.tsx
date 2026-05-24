@@ -1,20 +1,21 @@
 import { Metadata } from 'next';
 
 interface Props {
-  params: { slug: string; id: string };
+  params: Promise<{ slug: string; id: string }>;
   children: React.ReactNode;
 }
 
-export async function generateMetadata({ params }: { params: { slug: string; id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string; id: string }> }): Promise<Metadata> {
   try {
+    const { slug, id } = await params;
     const base  = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
     const stRes = await fetch(`${base}/stores`, { next: { revalidate: 60 } });
     const stores = await stRes.json();
-    const store  = stores.find((s: { slug: string; id: string; name: string }) => s.slug === params.slug);
+    const store  = stores.find((s: { slug: string; id: string; name: string }) => s.slug === slug);
     if (!store) return { title: 'Producto — Shopper' };
     const prRes  = await fetch(`${base}/stores/${store.id}/products`, { next: { revalidate: 60 } });
     const prods  = await prRes.json();
-    const prod   = prods.find((p: { _id: string; title: string; description?: string; price: number; images?: string[] }) => p._id === params.id);
+    const prod   = prods.find((p: { _id: string; title: string; description?: string; price: number; images?: string[] }) => p._id === id);
     if (!prod) return { title: 'Producto — Shopper' };
     const fmt    = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
     return {

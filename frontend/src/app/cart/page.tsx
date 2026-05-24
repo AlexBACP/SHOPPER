@@ -34,11 +34,10 @@ export default function CartPage() {
   const handleCoupon = async () => {
     if (!couponInput.trim()) return;
     setCouponLoading(true); setCouponError('');
-    await new Promise(r => setTimeout(r, 700));
-    const ok = applyCoupon(couponInput);
+    const result = await applyCoupon(couponInput);
     setCouponLoading(false);
-    if (ok) toast.success(`¡Cupón ${couponInput.toUpperCase()} aplicado! −${discount}%`);
-    else setCouponError('Cupón inválido o expirado');
+    if (result.ok) toast.success(`¡Cupón ${couponInput.toUpperCase()} aplicado! −${discount}%`);
+    else setCouponError(result.message ?? 'Cupón inválido o expirado');
   };
 
   const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.06 } } };
@@ -198,7 +197,7 @@ export default function CartPage() {
                       </button>
                     </div>
                     {couponError && <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{couponError}</p>}
-                    <p className="text-[10px] text-[var(--text-muted)] mt-2">Prueba: SHOPPER10 · BIENVENIDO · COLOMBIA20</p>
+                    <p className="text-[10px] text-[var(--text-muted)] mt-2">Ingresa tu código de descuento</p>
                   </>
                 )}
               </motion.div>

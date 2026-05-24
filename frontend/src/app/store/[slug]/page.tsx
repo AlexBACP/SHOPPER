@@ -28,9 +28,8 @@ export default function PaginaTienda() {
   useEffect(() => {
     (async () => {
       try {
-        const stores = await api.get('/stores');
-        const t = stores.data.find((s: TipoTienda) => s.slug === slug);
-        if (!t) { setNotFound(true); return; }
+        const storeRes = await api.get(`/stores/slug/${slug}`);
+        const t: TipoTienda = storeRes.data;
         setTienda(t);
         const pr = await api.get(`/stores/${t.id}/products`);
         setProductos(pr.data.filter((p: Producto) => p.is_active !== false));
@@ -193,7 +192,7 @@ export default function PaginaTienda() {
                           <Link href={`/store/${slug}/product/${p._id}`}>
                             <h3 className="text-sm font-medium text-[var(--text-primary)] line-clamp-2 hover:text-[var(--blue)] transition-colors min-h-[2.5rem]">{p.title}</h3>
                           </Link>
-                          <div className="flex items-center gap-0.5 my-1">{[1,2,3,4,5].map(s=><Star key={s} className="w-2.5 h-2.5 fill-orange-400 text-orange-400"/>)}</div>
+                          <span className="text-[10px] text-[var(--text-muted)] my-1 inline-block">Nuevo</span>
                           <p className="text-base font-bold text-[var(--text-primary)] mb-2">{fmt(p.price)}</p>
                           <button onClick={() => agregar(p)} disabled={p.stock === 0}
                             className={`w-full py-1.5 text-xs font-bold rounded-lg transition-all ${

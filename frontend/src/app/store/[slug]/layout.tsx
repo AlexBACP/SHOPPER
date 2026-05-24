@@ -1,18 +1,19 @@
 import { Metadata } from 'next';
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
   children: React.ReactNode;
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   try {
+    const { slug } = await params;
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/stores`,
       { next: { revalidate: 60 } }
     );
     const stores = await res.json();
-    const store  = stores.find((s: { slug: string; name: string; description?: string; logo_url?: string }) => s.slug === params.slug);
+    const store  = stores.find((s: { slug: string; name: string; description?: string; logo_url?: string }) => s.slug === slug);
     if (!store) return { title: 'Tienda no encontrada' };
     return {
       title:       `${store.name} — Shopper`,

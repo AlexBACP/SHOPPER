@@ -1,6 +1,6 @@
 'use client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Package, ShoppingCart, Trash2, ArrowRight, Star } from 'lucide-react';
+import { Heart, Package, ShoppingCart, Trash2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useWishlistStore } from '@/store/wishlist.store';
 import { useCartStore } from '@/store/cart.store';
@@ -76,7 +76,7 @@ export default function WishlistPage() {
                     <Link href={`/store/${item.storeSlug}/product/${item.productId}`}>
                       <p className="text-sm font-semibold text-[var(--text-primary)] line-clamp-2 hover:text-[var(--blue)] transition-colors min-h-[2.5rem]">{item.title}</p>
                     </Link>
-                    <div className="flex items-center gap-0.5 my-1.5">{[1,2,3,4,5].map(s=><Star key={s} className="w-2.5 h-2.5 fill-amber-400 text-amber-400"/>)}</div>
+                    <span className="text-[10px] text-[var(--text-muted)] my-1.5 inline-block">Nuevo</span>
                     <p className="text-base font-black text-[var(--text-primary)] mb-3">{fmt(item.price)}</p>
                     <div className="flex gap-2">
                       <button onClick={() => agregar(item)}

@@ -396,10 +396,13 @@ export default function Navbar() {
                 <div className="flex rounded-md overflow-hidden border border-[var(--border)]">
                   <input
                     type="text"
+                    value={busqueda}
+                    onChange={e => setBusqueda(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && irABuscar()}
                     placeholder="Buscar..."
                     className="flex-1 px-3 py-2 text-sm outline-none text-[var(--text-primary)]"
                   />
-                  <button className="bg-[var(--accent)] px-3 flex items-center">
+                  <button onClick={irABuscar} className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] px-3 flex items-center transition-colors">
                     <Search className="w-4 h-4 text-white" />
                   </button>
                 </div>

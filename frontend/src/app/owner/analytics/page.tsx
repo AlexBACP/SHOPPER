@@ -145,9 +145,9 @@ export default function AnalyticsPage() {
 
   // ── Pedidos por estado (pie) ──────────────────────────
   const porEstado = useMemo(() =>
-    Object.entries(
+    (Object.entries(
       pedidos.reduce((acc, p) => ({ ...acc, [p.status]: (acc[p.status] ?? 0) + 1 }), {} as Record<string, number>)
-    ).map(([status, value]) => ({ name: ESTADOS_LABEL[status] ?? status, value }))
+    ) as [string, number][]).map(([status, value]) => ({ name: ESTADOS_LABEL[status] ?? status, value }))
       .sort((a, b) => b.value - a.value),
     [pedidos]);
 

@@ -34,11 +34,10 @@ export default function CartDrawer() {
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;
     setCouponLoading(true); setCouponError('');
-    await new Promise(r => setTimeout(r, 600)); // simular llamada
-    const ok = applyCoupon(couponInput);
+    const result = await applyCoupon(couponInput);
     setCouponLoading(false);
-    if (ok) { toast.success(`¡Cupón aplicado! ${discount}% de descuento`); setCouponInput(''); }
-    else    { setCouponError('Cupón inválido o expirado'); }
+    if (result.ok) { toast.success(`¡Cupón aplicado! ${discount}% de descuento`); setCouponInput(''); }
+    else           { setCouponError(result.message ?? 'Cupón inválido o expirado'); }
   };
 
   return (
