@@ -62,10 +62,10 @@ export class StoresController {
     return this.storesService.update(id, user.id, user.role, dto);
   }
 
-  // ── Eliminar tienda ──
+  // ── Eliminar tienda (solo admin / super_admin — el vendedor no puede) ──
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @HttpCode(204)
   remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.storesService.delete(id, user.id, user.role);

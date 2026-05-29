@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // ── Salida standalone para Docker (server.js minimal) ───
+  output: 'standalone',
+
   // ── Imágenes permitidas ─────────────────────────────────
   images: {
     remotePatterns: [

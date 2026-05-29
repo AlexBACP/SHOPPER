@@ -1,0 +1,26 @@
+node_modules
+dist
+build
+coverage
+.nyc_output
+
+# Secretos — nunca dentro de la imagen
+.env
+.env.*
+!.env.example
+
+# Git / IDE
+.git
+.gitignore
+.vscode
+.idea
+*.log
+
+# Tests / docs
+test
+*.md
+README*
+
+# OS
+.DS_Store
+Thumbs.db

@@ -14,15 +14,17 @@ const { MongoClient } = require('mongodb');
 const bcrypt          = require('bcrypt');
 
 // ── Conexiones ────────────────────────────────────────────────────────────────
+require('dotenv').config();
+
 const pool = new Pool({
-  host:     '127.0.0.1',
-  port:     5432,
-  user:     'postgres',
-  password: '2203Alex',
-  database: 'shopperdb',
+  host:     process.env.DB_HOST     || '127.0.0.1',
+  port:     parseInt(process.env.DB_PORT || '5432'),
+  user:     process.env.DB_USER     || 'postgres',
+  password: process.env.DB_PASSWORD || '1234',
+  database: process.env.DB_NAME     || 'shopperdb',
 });
 
-const mongoClient = new MongoClient('mongodb://127.0.0.1:27017');
+const mongoClient = new MongoClient(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017');
 const MONGO_DB    = 'shopper_db';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

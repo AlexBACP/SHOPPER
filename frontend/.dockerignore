@@ -1,0 +1,23 @@
+node_modules
+.next
+out
+build
+coverage
+
+# Secretos
+.env
+.env.*
+!.env.example
+
+# Git / IDE
+.git
+.gitignore
+.vscode
+.idea
+*.log
+
+# Docs / OS
+*.md
+README*
+.DS_Store
+Thumbs.db

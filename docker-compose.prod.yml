@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────
+#  SHOPPER · docker-compose (producción)
+#  Override que cambia los servicios a la imagen `prod` final
+#  (sin bind mounts, sin hot reload, ejecutando el código compilado).
+#
+#  Uso:
+#    docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# ─────────────────────────────────────────────────────────────
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: prod
+    environment:
+      NODE_ENV: production
+    volumes: []        # quita bind mounts de dev
+    command: ["node", "dist/main"]
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        # Estas variables NEXT_PUBLIC_* se embeben en el bundle del cliente
+        # durante `next build`. Si tu API o sitio cambian de URL, edítalas aquí.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    volumes: []        # quita bind mounts de dev
+    command: ["node", "server.js"]

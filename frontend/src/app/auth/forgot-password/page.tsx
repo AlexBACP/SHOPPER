@@ -55,7 +55,6 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-[var(--bg)] flex">
       {/* Panel decorativo */}
       <div className="hidden lg:flex flex-col justify-between w-[45%] bg-[var(--nav-bg)] p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,153,0,0.4) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <Link href="/" className="flex items-center gap-2.5 relative z-10">
           <div className="w-9 h-9 bg-[var(--accent)] rounded-lg flex items-center justify-center">
             <Crown className="w-5 h-5 text-white" strokeWidth={2.5} />

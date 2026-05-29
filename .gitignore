@@ -17,3 +17,6 @@ Thumbs.db
 .env.local
 .env*.local
 node_modules/
+
+# Credenciales locales — no subir
+CREDENCIALES_ADMIN.txt

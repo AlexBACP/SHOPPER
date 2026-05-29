@@ -4,7 +4,7 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans:  var(--font-geist-sans);
+  --font-sans:  var(--font-inter);
   --font-mono:  var(--font-geist-mono);
   --font-serif: 'Instrument Serif', Georgia, serif;
 }
@@ -37,7 +37,7 @@
   /* ── Texto ────────────────────────────────── */
   --text-primary:   #0F1111;
   --text-secondary: #565959;
-  --text-muted:     #8D9393;
+  --text-muted:     #6E7375;
   --text-accent:    #007185;
   --text-link:      #007185;
   --text-price:     #B12704;
@@ -136,6 +136,9 @@ body {
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Glifos alternativos de Inter (1, a, g más legibles) + interletraje fino */
+  font-feature-settings: 'cv11', 'ss01';
+  letter-spacing: -0.011em;
   overflow-x: hidden;
 }
 

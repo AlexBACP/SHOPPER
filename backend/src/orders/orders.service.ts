@@ -1,6 +1,7 @@
 // src/orders/orders.service.ts
 import {
-  Injectable, Inject, BadRequestException, NotFoundException, ForbiddenException,
+  Injectable, Inject, BadRequestException, NotFoundException,
+  ForbiddenException, UnauthorizedException,
 } from '@nestjs/common';
 import { Pool } from 'pg';
 import { MongoClient, ObjectId } from 'mongodb';
@@ -112,8 +113,12 @@ export class OrdersService {
       }
 
       await client.query('COMMIT');
-    } catch (err) {
+    } catch (err: any) {
       await client.query('ROLLBACK');
+      // FK violation buyer_id → sesión expirada o usuario eliminado
+      if (err.code === '23503' && err.constraint?.includes('buyer_id')) {
+        throw new UnauthorizedException('Tu sesión expiró. Por favor cierra sesión e inicia de nuevo.');
+      }
       throw err;
     } finally {
       client.release();
@@ -331,15 +336,30 @@ export class OrdersService {
     buyerId:     string,
     dto:         CreateOrderDto,
     frontendUrl: string,
-  ): Promise<{ orderId: string; urlPago: string; wompiConfigurado: boolean }> {
+  ): Promise<{ orderId: string; urlPago: string; wompiConfigurado: boolean; couponApplied: boolean }> {
     // 1. Crear la orden (misma lógica que checkout normal)
     const fullOrder = await this.checkout(buyerId, dto);
+    const couponApplied = fullOrder.coupon_applied;
 
-    const wompiConfigurado = this.wompiService.estaConfigurado;
+    // El checkout web de Wompi (CloudFront/WAF) BLOQUEA cualquier redirect-url
+    // hacia http://localhost. Por eso el flujo real solo es posible con un
+    // dominio público https://. En local (o con WOMPI_SIMULAR=true) usamos un
+    // pago SIMULADO: marcamos la orden como pagada y mostramos la pantalla de
+    // éxito, sin depender del externo.
+    const simular =
+      process.env.WOMPI_SIMULAR === 'true' || !/^https:\/\//i.test(frontendUrl);
+    const wompiConfigurado = !simular && this.wompiService.estaConfigurado;
 
     if (!wompiConfigurado) {
-      // Sin credenciales Wompi → devolver la orden creada sin URL de pago real
-      return { orderId: fullOrder.id, urlPago: '', wompiConfigurado: false };
+      if (simular) {
+        // Pago aprobado simulado → orden confirmada
+        await this.pool.query(
+          `UPDATE orders SET status = 'confirmed', updated_at = NOW() WHERE id = $1`,
+          [fullOrder.id],
+        ).catch(() => null);
+      }
+      // Simulación o sin credenciales → sin URL de pago externa
+      return { orderId: fullOrder.id, urlPago: '', wompiConfigurado: false, couponApplied };
     }
 
     // 2. Preparar datos de Wompi
@@ -355,7 +375,7 @@ export class OrdersService {
       urlRedireccion,
     });
 
-    return { orderId: fullOrder.id, urlPago: urlCheckout, wompiConfigurado: true };
+    return { orderId: fullOrder.id, urlPago: urlCheckout, wompiConfigurado: true, couponApplied };
   }
 
   async updateStatus(orderId: string, dto: UpdateOrderStatusDto, requesterId: string, requesterRole: string): Promise<Order> {

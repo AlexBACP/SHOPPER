@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ShoppingBag, ArrowLeft, MapPin, Package, CheckCircle,
+  ShoppingBag, ArrowLeft, MapPin, Package,
   Loader2, CreditCard, Shield, Lock, ChevronRight,
-  Truck, BadgeCheck, Star, Phone, Building2, Smartphone,
+  Truck, BadgeCheck, Star, Phone, Smartphone,
+  Landmark, Wallet, Check, AlertCircle, ShieldCheck,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,12 +28,12 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 type PayMethod = 'pse' | 'nequi' | 'daviplata' | 'card';
-type Step = 'shipping' | 'payment' | 'processing' | 'success';
+type Step = 'shipping' | 'payment' | 'processing';
 
 const fmt  = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
 const STEPS_LABELS = ['Envío', 'Pago', 'Confirmado'];
-const STEP_IDX: Record<Step, number> = { shipping: 0, payment: 1, processing: 1, success: 2 };
+const STEP_IDX: Record<Step, number> = { shipping: 0, payment: 1, processing: 1 };
 
 const DEPARTAMENTOS = [
   'Amazonas','Antioquia','Arauca','Atlántico','Bolívar','Boyacá','Caldas',
@@ -41,11 +43,14 @@ const DEPARTAMENTOS = [
   'Santander','Sucre','Tolima','Valle del Cauca','Vaupés','Vichada',
 ];
 
-const PAY_METHODS = [
-  { id: 'pse'       as PayMethod, label: 'PSE',         desc: 'Débito bancario directo',   emoji: '🏦', color: 'from-blue-50 to-blue-100 border-blue-200',     active: 'from-blue-100 to-blue-200 border-blue-400'   },
-  { id: 'nequi'     as PayMethod, label: 'Nequi',        desc: 'Billetera digital',         emoji: '📱', color: 'from-purple-50 to-purple-100 border-purple-200', active: 'from-purple-100 to-purple-200 border-purple-400' },
-  { id: 'daviplata' as PayMethod, label: 'Daviplata',    desc: 'Pago móvil Davivienda',     emoji: '🔴', color: 'from-red-50 to-red-100 border-red-200',           active: 'from-red-100 to-red-200 border-red-400'       },
-  { id: 'card'      as PayMethod, label: 'Tarjeta',      desc: 'Visa / Mastercard / Amex',  emoji: '💳', color: 'from-indigo-50 to-indigo-100 border-indigo-200',  active: 'from-indigo-100 to-indigo-200 border-indigo-400' },
+const PAY_METHODS: Array<{
+  id: PayMethod; label: string; desc: string;
+  Icon: LucideIcon; iconBg: string; iconColor: string; ring: string;
+}> = [
+  { id: 'pse',       label: 'PSE',       desc: 'Débito desde tu banco',    Icon: Landmark,   iconBg: 'bg-blue-50',    iconColor: 'text-blue-600',    ring: 'border-blue-500 ring-blue-100'       },
+  { id: 'nequi',     label: 'Nequi',     desc: 'Billetera digital',        Icon: Smartphone, iconBg: 'bg-fuchsia-50', iconColor: 'text-fuchsia-600', ring: 'border-fuchsia-500 ring-fuchsia-100' },
+  { id: 'daviplata', label: 'Daviplata', desc: 'Pago móvil Davivienda',    Icon: Wallet,     iconBg: 'bg-red-50',     iconColor: 'text-red-600',     ring: 'border-red-500 ring-red-100'         },
+  { id: 'card',      label: 'Tarjeta',   desc: 'Crédito o débito',         Icon: CreditCard, iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-600',  ring: 'border-indigo-500 ring-indigo-100'   },
 ];
 
 function StepIndicator({ step }: { step: Step }) {
@@ -59,7 +64,7 @@ function StepIndicator({ step }: { step: Step }) {
             idx === i ? 'bg-[var(--accent)] text-white shadow-lg shadow-orange-200/60' :
             'bg-white/20 text-white/50'
           }`}>
-            {idx > i ? '✓' : i + 1}
+            {idx > i ? <Check className="w-4 h-4" strokeWidth={3} /> : i + 1}
           </div>
           <span className={`text-xs font-medium transition-colors ${idx >= i ? 'text-white' : 'text-white/40'}`}>{label}</span>
           {i < STEPS_LABELS.length - 1 && (
@@ -80,7 +85,7 @@ function InputField({ label, error, children }: { label: string; error?: string;
         {error && (
           <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="text-xs text-red-500 mt-1 flex items-center gap-1">
-            ⚠ {error}
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
           </motion.p>
         )}
       </AnimatePresence>
@@ -101,7 +106,6 @@ export default function CheckoutPage() {
   const [payMethod,    setPayMethod]    = useState<PayMethod>('pse');
   const [shippingData, setShippingData] = useState<FormData | null>(null);
   const [error,        setError]        = useState('');
-  const [orderId,      setOrderId]      = useState('');
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -133,7 +137,9 @@ export default function CheckoutPage() {
     if (!shippingData) return;
     setStep('processing'); setError('');
     try {
-      const res = await api.post('/orders/checkout', {
+      // Crea la orden y prepara el pago. El backend devuelve la URL de la
+      // pasarela segura de Wompi (si está configurada) para redirigir al usuario.
+      const res = await api.post('/orders/checkout/prepare', {
         ...shippingData,
         payment_method: payMethod,
         coupon_code: coupon ?? undefined,
@@ -148,19 +154,29 @@ export default function CheckoutPage() {
         })),
       });
 
-      // Si el usuario tenía un cupón pero el backend lo descartó (venció o se agotó
-      // justo entre que lo aplicó en el carrito y llegó al checkout) avisamos.
-      if (coupon && res.data?.coupon_applied === false) {
+      const { orderId, urlPago, wompiConfigurado, couponApplied } = res.data as {
+        orderId: string; urlPago: string; wompiConfigurado: boolean; couponApplied: boolean;
+      };
+
+      clearCart();
+
+      // El cupón venció/se agotó entre el carrito y el checkout → avisar
+      const couponDropped = !!coupon && couponApplied === false;
+      if (couponDropped) {
         toast.warning(
-          `El cupón "${coupon}" ya no es válido (venció o alcanzó su límite). ` +
-          'Tu pedido fue procesado sin descuento.',
+          `El cupón "${coupon}" ya no es válido. Tu pedido se procesó sin descuento.`,
           { duration: 6000 },
         );
+        await new Promise(r => setTimeout(r, 1500)); // dar tiempo a leer el aviso
       }
 
-      setOrderId(res.data?.id ?? 'ORD-' + Date.now().toString(36).toUpperCase());
-      clearCart();
-      setStep('success');
+      // Redirección real: a la pasarela de Wompi si está configurada,
+      // o a la página de confirmación interna en caso contrario.
+      if (wompiConfigurado && urlPago) {
+        window.location.href = urlPago;
+      } else {
+        window.location.href = `/checkout/success?ref=${orderId}${couponDropped ? '&coupon_dropped=1' : ''}`;
+      }
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al procesar el pago. Intenta de nuevo.';
       setError(msg);
@@ -168,37 +184,6 @@ export default function CheckoutPage() {
       setStep('payment');
     }
   };
-
-  if (step === 'success') return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center px-4">
-      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 200 }}
-        className="text-center max-w-md w-full">
-        <motion.div
-          initial={{ scale: 0 }} animate={{ scale: 1 }}
-          transition={{ delay: 0.15, type: 'spring', stiffness: 280, damping: 18 }}
-          className="w-28 h-28 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-200/50"
-        >
-          <CheckCircle className="w-14 h-14 text-green-600" />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <h1 className="text-3xl font-black text-[var(--text-primary)] mb-2">¡Pedido realizado!</h1>
-          {orderId && <p className="text-sm text-[var(--text-muted)] mb-1">Pedido <strong className="text-[var(--text-primary)] font-mono">#{orderId.slice(-8).toUpperCase()}</strong></p>}
-          <p className="text-[var(--text-muted)] mb-2">Recibirás confirmación por email y seguimiento de tu pedido.</p>
-          <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-sm text-green-700 font-medium mb-8">
-            <BadgeCheck className="w-4 h-4" /> Pago verificado · IVA incluido
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/orders" className="inline-flex items-center justify-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold px-6 py-3.5 rounded-xl transition-all hover:shadow-md">
-              Ver mis pedidos <ChevronRight className="w-4 h-4" />
-            </Link>
-            <Link href="/" className="inline-flex items-center justify-center gap-2 border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text-secondary)] font-medium px-6 py-3.5 rounded-xl transition-colors">
-              Seguir comprando
-            </Link>
-          </div>
-        </motion.div>
-      </motion.div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -274,58 +259,75 @@ export default function CheckoutPage() {
                     <h2 className="font-bold text-[var(--text-primary)]">Método de pago</h2>
                   </div>
                   <div className="p-6">
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                      {PAY_METHODS.map(m => (
-                        <motion.button key={m.id} type="button"
-                          onClick={() => setPayMethod(m.id)}
-                          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                          className={`flex flex-col items-start gap-2 p-4 border-2 rounded-xl text-left transition-all bg-gradient-to-br ${payMethod === m.id ? m.active + ' shadow-md' : m.color}`}
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span className="text-2xl">{m.emoji}</span>
-                            {payMethod === m.id && (
-                              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
-                                className="w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
-                                <CheckCircle className="w-3.5 h-3.5 text-green-600" />
-                              </motion.div>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-[var(--text-primary)]">{m.label}</p>
-                            <p className="text-xs text-[var(--text-muted)]">{m.desc}</p>
-                          </div>
-                        </motion.button>
+                    <p className="text-sm text-[var(--text-secondary)] mb-3">Elige cómo quieres pagar</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                      {PAY_METHODS.map(m => {
+                        const selected = payMethod === m.id;
+                        return (
+                          <motion.button key={m.id} type="button"
+                            onClick={() => setPayMethod(m.id)}
+                            whileTap={{ scale: 0.98 }}
+                            className={`relative flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all bg-white ${
+                              selected ? `${m.ring} ring-2 shadow-sm` : 'border-[var(--border)] hover:border-[var(--border-hover)]'
+                            }`}
+                          >
+                            <div className={`w-11 h-11 rounded-xl ${m.iconBg} flex items-center justify-center shrink-0`}>
+                              <m.Icon className={`w-5 h-5 ${m.iconColor}`} strokeWidth={2} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold text-[var(--text-primary)] leading-tight">{m.label}</p>
+                              <p className="text-xs text-[var(--text-muted)] truncate">{m.desc}</p>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                              selected ? 'border-[var(--accent)] bg-[var(--accent)]' : 'border-[var(--border-hover)]'
+                            }`}>
+                              {selected && (
+                                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                  <Check className="w-3 h-3 text-white" strokeWidth={3.5} />
+                                </motion.span>
+                              )}
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Redes aceptadas */}
+                    <div className="flex flex-wrap items-center gap-2 mb-5">
+                      <span className="text-[11px] text-[var(--text-muted)]">Aceptamos:</span>
+                      {['VISA', 'Mastercard', 'Amex', 'PSE', 'Nequi'].map(n => (
+                        <span key={n} className="px-2 py-0.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] text-[10px] font-bold text-[var(--text-secondary)] tracking-wide">{n}</span>
                       ))}
                     </div>
 
                     {error && (
                       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
                         className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
-                        ⚠ {error}
+                        <AlertCircle className="w-4 h-4 shrink-0" /> {error}
                       </motion.div>
                     )}
 
-                    <div className="flex items-start gap-2 text-xs text-[var(--text-muted)] mb-4 bg-green-50 border border-green-200 rounded-xl p-3">
-                      <Shield className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
-                      <span>Todas las transacciones están protegidas con cifrado <strong>SSL 256-bit</strong>. Tu información financiera nunca es almacenada en nuestros servidores.</span>
+                    <div className="flex items-start gap-2.5 text-xs text-[var(--text-secondary)] mb-3 bg-green-50 border border-green-200 rounded-xl p-3">
+                      <ShieldCheck className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+                      <span>Pago protegido con cifrado <strong>SSL 256-bit</strong>. No almacenamos los datos de tu tarjeta en ningún momento.</span>
                     </div>
-                    <div className="flex items-start gap-2 text-xs text-blue-700 mb-6 bg-blue-50 border border-blue-200 rounded-xl p-3">
-                      <span className="shrink-0 mt-0.5">ℹ️</span>
-                      <span>Integración con <strong>Wompi</strong>, <strong>PayU</strong> o <strong>ePayco</strong> disponible en producción. Contacta a tu administrador para activarla.</span>
+                    <div className="flex items-start gap-2.5 text-xs text-blue-700 mb-6 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                      <Lock className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>Al confirmar, tu pago se procesa de forma segura con <strong>Wompi</strong> (Bancolombia) y recibirás la confirmación de tu pedido al instante.</span>
                     </div>
 
                     <div className="flex gap-3">
-                      <button type="button" onClick={() => setStep('shipping')}
-                        className="flex-1 py-3.5 border border-[var(--border)] rounded-xl text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors flex items-center justify-center gap-2">
+                      <button type="button" onClick={() => setStep('shipping')} disabled={step === 'processing'}
+                        className="flex-1 py-3.5 border border-[var(--border)] rounded-xl text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                         <ArrowLeft className="w-4 h-4" /> Atrás
                       </button>
                       <motion.button type="button" onClick={onPay}
                         disabled={step === 'processing'}
                         whileTap={{ scale: 0.98 }}
-                        className="flex-1 py-3.5 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-black rounded-xl text-sm transition-all hover:shadow-lg hover:shadow-orange-200/50 flex items-center justify-center gap-2 disabled:opacity-60">
+                        className="flex-[1.6] py-3.5 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-black rounded-xl text-sm transition-all hover:shadow-lg hover:shadow-orange-200/50 flex items-center justify-center gap-2 disabled:opacity-60">
                         {step === 'processing'
-                          ? <><Loader2 className="w-4 h-4 animate-spin" /> Procesando...</>
-                          : <><Lock className="w-4 h-4" /> Confirmar · {fmt(cartTotal)}</>
+                          ? <><Loader2 className="w-4 h-4 animate-spin" /> Redirigiendo al pago…</>
+                          : <><Lock className="w-4 h-4" /> Pagar {fmt(cartTotal)}</>
                         }
                       </motion.button>
                     </div>

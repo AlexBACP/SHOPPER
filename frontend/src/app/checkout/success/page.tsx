@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle2, XCircle, Loader2, ShoppingBag, ArrowRight, Home } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useCartStore } from '@/store/cart.store';
 
@@ -32,6 +33,11 @@ export default function PaginaExitoCheckout() {
 
     // Limpiar el carrito (ya fue procesado)
     clearCart();
+
+    // Aviso si el cupón se descartó entre el carrito y el checkout
+    if (params.get('coupon_dropped') === '1') {
+      toast.warning('El cupón ya no era válido. Tu pedido se procesó sin descuento.', { duration: 6000 });
+    }
 
     // Consultar el estado de la orden en nuestro backend
     const consultarOrden = async () => {

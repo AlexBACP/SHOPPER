@@ -1,0 +1,14 @@
+{
+  "name": "shopper",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"BACK,FRONT\" --prefix-colors \"cyan,magenta\" \"npm run dev:back\" \"npm run dev:front\"",
+    "dev:back": "cd backend && npm run start:dev",
+    "dev:front": "cd frontend && npm run dev",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

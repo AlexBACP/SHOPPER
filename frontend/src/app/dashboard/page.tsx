@@ -3,28 +3,39 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Store, Package, ShoppingCart, TrendingUp, Shield, Star,
+  Store, Package, ShoppingCart, TrendingUp, Shield,
   ArrowRight, Plus, Eye, ShoppingBag, Crown, CheckCircle,
-  AlertCircle, Zap, BarChart3, Loader2, Sparkles,
-  ArrowUpRight, Users, BadgeCheck, Heart, Clock,
-  MapPin, ChevronRight, DollarSign,
+  AlertCircle, Zap, BarChart3, Loader2,
+  Users, Heart, Clock,
+  MapPin, ChevronRight, DollarSign, Sun, Moon, Sunrise,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { useAuthStore } from '@/store/auth.store';
-import { useCartStore, IVA_RATE } from '@/store/cart.store';
+import { useCartStore } from '@/store/cart.store';
 import { useWishlistStore } from '@/store/wishlist.store';
 import api from '@/lib/api';
 
-const fmt  = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-const fmtS = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n / 1_000).toFixed(0)}k` : `$${n}`;
+// Postgres devuelve los numeric/decimal como string → siempre coercer a número
+const toNum = (v: unknown): number => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const fmt  = (n: unknown) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(toNum(n));
+const fmtS = (n: unknown) => { const v = toNum(n); return v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `$${(v / 1_000).toFixed(0)}k` : `$${v}`; };
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.07 } } };
 const anim    = { hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0, transition: { ease: [0.16,1,0.3,1] as [number,number,number,number], duration: 0.5 } } };
+
+// Saludo según la hora — con icono real, sin emojis
+function saludoActual(): { Icon: LucideIcon; text: string } {
+  const h = new Date().getHours();
+  if (h < 12) return { Icon: Sunrise, text: 'Buenos días'   };
+  if (h < 19) return { Icon: Sun,     text: 'Buenas tardes' };
+  return            { Icon: Moon,    text: 'Buenas noches' };
+}
 
 const ESTADOS: Record<string,{ label:string; color:string; icon:React.ElementType }> = {
   pending:    { label:'Pendiente',  color:'text-yellow-700 bg-yellow-50 border-yellow-200', icon:Clock        },
@@ -70,7 +81,7 @@ function DashboardComprador({ nombre }: { nombre: string }) {
 
   const totalGastado = pedidos
     .filter(p => p.status !== 'cancelled' && p.status !== 'refunded')
-    .reduce((s, p) => s + (p.total ?? 0), 0);
+    .reduce((s, p) => s + toNum(p.total), 0);
 
   const pendientes = pedidos.filter(p => p.status === 'pending' || p.status === 'processing' || p.status === 'shipped').length;
 
@@ -85,36 +96,43 @@ function DashboardComprador({ nombre }: { nombre: string }) {
     pedidos.filter(p => p.status !== 'cancelled').forEach(p => {
       const d   = new Date(p.created_at);
       const key = MESES[d.getMonth()];
-      if (mapa[key] !== undefined) mapa[key] += p.total ?? 0;
+      if (mapa[key] !== undefined) mapa[key] += toNum(p.total);
     });
     return Object.entries(mapa).map(([mes, total]) => ({ mes, total }));
   })();
 
-  const hora    = new Date().getHours();
-  const saludo  = hora < 12 ? '☀️ Buenos días' : hora < 19 ? '👋 Buenas tardes' : '🌙 Buenas noches';
+  const { Icon: SaludoIcon, text: saludo } = saludoActual();
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-6">
 
-      {/* Saludo personalizado */}
-      <motion.div variants={anim} className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-orange-200/50 shrink-0">
-          {nombre[0]?.toUpperCase()}
-        </div>
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-semibold bg-green-50 text-green-700 border-green-200">
-              <Shield className="w-3 h-3" /> Comprador
-            </span>
-            <div className="flex items-center gap-1 text-xs text-green-600">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              En línea
-            </div>
+      {/* Banner de bienvenida */}
+      <motion.div variants={anim}
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--nav-bg)] to-[#1b2436] p-6 sm:p-7 shadow-lg">
+        {/* Resplandor decorativo */}
+        <div className="pointer-events-none absolute -top-16 -right-12 w-60 h-60 rounded-full bg-orange-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 left-1/4 w-52 h-52 rounded-full bg-indigo-500/10 blur-3xl" />
+
+        <div className="relative flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-orange-900/30 shrink-0">
+            {nombre[0]?.toUpperCase()}
           </div>
-          <h1 className="text-xl md:text-2xl font-black text-[var(--text-primary)]">
-            {saludo}, <span className="text-[var(--accent-dark)]">{nombre.split(' ')[0]}</span>
-          </h1>
-          <p className="text-sm text-[var(--text-muted)]">Bienvenido a tu panel de compras</p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold bg-white/10 text-white border border-white/15">
+                <Shield className="w-3 h-3" /> Comprador
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-green-400 font-medium">
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                En línea
+              </span>
+            </div>
+            <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2 flex-wrap">
+              <SaludoIcon className="w-5 h-5 text-[var(--accent)] shrink-0" strokeWidth={2.5} />
+              {saludo}, <span className="text-[var(--accent)]">{nombre.split(' ')[0]}</span>
+            </h1>
+            <p className="text-sm text-white/50">Bienvenido a tu panel de compras</p>
+          </div>
         </div>
       </motion.div>
 
@@ -286,13 +304,12 @@ function DashboardVendedor({ nombre }: { nombre: string }) {
   }, []);
 
   const validos     = pedidos.filter(p => p.status !== 'cancelled' && p.status !== 'refunded');
-  const totalIngreso = validos.reduce((s, p) => s + (p.total ?? 0), 0);
+  const totalIngreso = validos.reduce((s, p) => s + toNum(p.total), 0);
   const pendientes  = pedidos.filter(p => p.status === 'pending').length;
   const stockBajo   = productos.filter(p => p.is_active && p.stock <= 5);
   const activos     = productos.filter(p => p.is_active).length;
 
-  const hora   = new Date().getHours();
-  const saludo = hora < 12 ? '☀️ Buenos días' : hora < 19 ? '👋 Buenas tardes' : '🌙 Buenas noches';
+  const { Icon: SaludoIcon, text: saludo } = saludoActual();
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-6">
@@ -306,7 +323,8 @@ function DashboardVendedor({ nombre }: { nombre: string }) {
           <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-semibold bg-purple-50 text-purple-700 border-purple-200 mb-1">
             <Store className="w-3 h-3" /> Vendedor
           </span>
-          <h1 className="text-xl md:text-2xl font-black text-[var(--text-primary)]">
+          <h1 className="text-xl md:text-2xl font-black text-[var(--text-primary)] flex items-center gap-2 flex-wrap">
+            <SaludoIcon className="w-5 h-5 text-[var(--accent)] shrink-0" strokeWidth={2.5} />
             {saludo}, <span className="text-[var(--accent-dark)]">{nombre.split(' ')[0]}</span>
           </h1>
           <p className="text-sm text-[var(--text-muted)]">Panel de vendedor</p>
@@ -323,7 +341,7 @@ function DashboardVendedor({ nombre }: { nombre: string }) {
           <StatCard icon={TrendingUp}  label="Ingresos"    value={fmtS(totalIngreso)}  sub={`${validos.length} pedidos`}         color="bg-orange-100 text-orange-600" href="/owner/analytics" />
           <StatCard icon={ShoppingBag} label="Pedidos"     value={pedidos.length}      sub={pendientes > 0 ? `${pendientes} pend.` : 'Al día'}  color="bg-blue-100 text-blue-600"   href="/owner/orders"    />
           <StatCard icon={Store}       label="Tiendas"     value={tiendas.filter(t=>t.is_published).length} sub={`de ${tiendas.length} total`}  color="bg-indigo-100 text-indigo-600" href="/owner/stores" />
-          <StatCard icon={Package}     label="Productos"   value={activos}             sub={stockBajo.length > 0 ? `⚠ ${stockBajo.length} stock bajo` : 'OK'} color="bg-green-100 text-green-600" href="/owner/products" />
+          <StatCard icon={Package}     label="Productos"   value={activos}             sub={stockBajo.length > 0 ? `${stockBajo.length} con stock bajo` : 'Inventario al día'} color="bg-green-100 text-green-600" href="/owner/products" />
         </div>
       )}
 

@@ -10,7 +10,7 @@ import {
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useCartStore } from '@/store/cart.store';
-import { ProductCardSkeleton } from '@/components/ui/Skeletons';
+import { SkeletonCard } from '@/components/ui/Skeletons';
 
 interface StoreData {
   id: string;
@@ -284,7 +284,7 @@ function SearchContent() {
 
         {query.trim() && loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {[...Array(8)].map((_, i) => <ProductCardSkeleton key={i} />)}
+            {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         )}
 

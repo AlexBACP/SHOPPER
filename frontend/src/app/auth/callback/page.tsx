@@ -91,7 +91,7 @@ export default function PaginaCallbackOAuth(): React.ReactElement {
   }, [params, router, setAuth]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] patron-grilla flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4">
       {/* Blobs decorativos */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-amber-500/[0.05] blur-[130px] animar-float-suave" />

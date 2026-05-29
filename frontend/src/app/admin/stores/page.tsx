@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Search, Eye, EyeOff, Trash2, CheckCircle, AlertCircle, RefreshCw, ExternalLink, Shield, Users, Package } from 'lucide-react';
+import { Store, Search, Eye, EyeOff, CheckCircle, AlertCircle, RefreshCw, ExternalLink, Shield, Users, Package } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -24,16 +24,10 @@ export default function AdminStoresPage() {
 
   const togglePublish = async (t: any) => {
     try {
-      await api.put(`/stores/${t.id}`, { is_published: !t.is_published });
-      toast.success(t.is_published ? 'Tienda ocultada' : '¡Tienda publicada!');
+      await api.patch(`/stores/${t.id}`, { is_published: !t.is_published });
+      toast.success(t.is_published ? 'Tienda desactivada' : '¡Tienda activada!');
       cargar();
     } catch { toast.error('Error al actualizar'); }
-  };
-
-  const eliminar = async (id: string, nombre: string) => {
-    if (!confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
-    try { await api.delete(`/stores/${id}`); toast.success('Tienda eliminada'); cargar(); }
-    catch { toast.error('Error al eliminar'); }
   };
 
   const filtradas = tiendas.filter(t => {
@@ -65,7 +59,7 @@ export default function AdminStoresPage() {
           </div>
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4">
-            {[{label:'Total',value:tiendas.length,color:'text-white'},{label:'Publicadas',value:pub,color:'text-green-300'},{label:'Ocultas',value:ocultas,color:'text-yellow-300'}].map(s=>(
+            {[{label:'Total',value:tiendas.length,color:'text-white'},{label:'Activas',value:pub,color:'text-green-300'},{label:'Inactivas',value:ocultas,color:'text-yellow-300'}].map(s=>(
               <div key={s.label} className="bg-white/10 rounded-xl px-4 py-3 text-center">
                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
                 <p className="text-white/50 text-xs">{s.label}</p>
@@ -83,7 +77,7 @@ export default function AdminStoresPage() {
               className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
           </div>
           <div className="flex gap-2">
-            {([['all','Todas'],['published','Publicadas'],['hidden','Ocultas']] as const).map(([v,l])=>(
+            {([['all','Todas'],['published','Activas'],['hidden','Inactivas']] as const).map(([v,l])=>(
               <button key={v} onClick={()=>setFiltro(v)}
                 className={`text-xs px-3 py-2 rounded-lg border font-medium transition-all ${filtro===v?'bg-[var(--accent)] border-[var(--accent)] text-white':'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]'}`}>
                 {l}
@@ -105,7 +99,7 @@ export default function AdminStoresPage() {
                   {t.logo_url?<img src={t.logo_url} alt={t.name} className="w-12 h-12 rounded-xl object-cover shadow-md"/>
                     :<div className="w-12 h-12 bg-[var(--accent)] rounded-xl flex items-center justify-center shadow-md"><span className="text-white text-xl font-black">{t.name[0]?.toUpperCase()}</span></div>}
                   <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full border font-semibold flex items-center gap-1 ${t.is_published?'bg-green-100 text-green-700 border-green-200':'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                    {t.is_published?<><CheckCircle className="w-3 h-3"/>Publicada</>:<><AlertCircle className="w-3 h-3"/>Oculta</>}
+                    {t.is_published?<><CheckCircle className="w-3 h-3"/>Activa</>:<><AlertCircle className="w-3 h-3"/>Inactiva</>}
                   </span>
                 </div>
                 <div className="p-4">
@@ -114,16 +108,12 @@ export default function AdminStoresPage() {
                   <div className="flex gap-2 flex-wrap">
                     <button onClick={()=>togglePublish(t)}
                       className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${t.is_published?'border-gray-200 text-gray-600 hover:bg-gray-50':'border-green-200 text-green-700 hover:bg-green-50'}`}>
-                      {t.is_published?<><EyeOff className="w-3.5 h-3.5"/>Ocultar</>:<><Eye className="w-3.5 h-3.5"/>Publicar</>}
+                      {t.is_published?<><EyeOff className="w-3.5 h-3.5"/>Desactivar</>:<><Eye className="w-3.5 h-3.5"/>Activar</>}
                     </button>
                     <Link href={`/store/${t.slug}`} target="_blank"
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] font-medium transition-all">
-                      <ExternalLink className="w-3.5 h-3.5"/>Ver
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] font-medium transition-all ml-auto">
+                      <ExternalLink className="w-3.5 h-3.5"/>Ver tienda
                     </Link>
-                    <button onClick={()=>eliminar(t.id,t.name)}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-all ml-auto">
-                      <Trash2 className="w-3.5 h-3.5"/>Eliminar
-                    </button>
                   </div>
                 </div>
               </motion.div>

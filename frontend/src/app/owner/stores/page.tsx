@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Plus, Eye, EyeOff, Trash2, Edit, ExternalLink, ArrowLeft, Loader2, CheckCircle, AlertCircle, Crown, Image as ImageIcon } from 'lucide-react';
+import { Store, Plus, Eye, EyeOff, Edit, ExternalLink, ArrowLeft, Loader2, CheckCircle, AlertCircle, Crown, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -22,7 +22,7 @@ function Modal({ tienda, onClose, onSaved }: { tienda: Partial<Tienda>|null; onC
     if (!name.trim()) { toast.error('El nombre es requerido'); return; }
     setSaving(true);
     try {
-      if (tienda?.id) await api.put(`/stores/${tienda.id}`, { name, description: desc, logo_url: logo });
+      if (tienda?.id) await api.patch(`/stores/${tienda.id}`, { name, description: desc, logo_url: logo });
       else await api.post('/stores', { name, description: desc, logo_url: logo });
       toast.success(tienda?.id ? 'Tienda actualizada' : 'Tienda creada');
       onSaved(); onClose();
@@ -82,16 +82,10 @@ export default function OwnerStoresPage() {
 
   const togglePublish = async (t: Tienda) => {
     try {
-      await api.put(`/stores/${t.id}`, { is_published: !t.is_published });
-      toast.success(t.is_published ? 'Tienda ocultada' : '¡Tienda publicada!');
+      await api.patch(`/stores/${t.id}`, { is_published: !t.is_published });
+      toast.success(t.is_published ? 'Tienda desactivada' : '¡Tienda activada!');
       cargar();
     } catch { toast.error('Error al actualizar'); }
-  };
-
-  const eliminar = async (id: string) => {
-    if (!confirm('¿Eliminar esta tienda? Esta acción no se puede deshacer.')) return;
-    try { await api.delete(`/stores/${id}`); toast.success('Tienda eliminada'); cargar(); }
-    catch { toast.error('Error al eliminar'); }
   };
 
   return (
@@ -129,7 +123,7 @@ export default function OwnerStoresPage() {
                   {t.logo_url ? <img src={t.logo_url} alt={t.name} className="w-12 h-12 rounded-xl object-cover shadow-md" />
                     : <div className="w-12 h-12 bg-[var(--accent)] rounded-xl flex items-center justify-center shadow-md"><span className="text-white text-xl font-black">{t.name[0]?.toUpperCase()}</span></div>}
                   <span className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full border font-semibold flex items-center gap-1 ${t.is_published ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                    {t.is_published ? <><CheckCircle className="w-3 h-3"/>Publicada</> : <><AlertCircle className="w-3 h-3"/>Oculta</>}
+                    {t.is_published ? <><CheckCircle className="w-3 h-3"/>Activa</> : <><AlertCircle className="w-3 h-3"/>Inactiva</>}
                   </span>
                 </div>
                 <div className="p-4">
@@ -138,7 +132,7 @@ export default function OwnerStoresPage() {
                   {t.description && <p className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-3">{t.description}</p>}
                   <div className="flex gap-2 flex-wrap">
                     <button onClick={() => togglePublish(t)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${t.is_published ? 'border-gray-200 text-gray-600 hover:bg-gray-50' : 'border-green-200 text-green-700 hover:bg-green-50'}`}>
-                      {t.is_published ? <><EyeOff className="w-3.5 h-3.5"/>Ocultar</> : <><Eye className="w-3.5 h-3.5"/>Publicar</>}
+                      {t.is_published ? <><EyeOff className="w-3.5 h-3.5"/>Desactivar</> : <><Eye className="w-3.5 h-3.5"/>Activar</>}
                     </button>
                     <button onClick={() => setModal(t)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] font-medium transition-all">
                       <Edit className="w-3.5 h-3.5"/>Editar
@@ -146,9 +140,6 @@ export default function OwnerStoresPage() {
                     <Link href={`/store/${t.slug}`} target="_blank" className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] font-medium transition-all">
                       <ExternalLink className="w-3.5 h-3.5"/>Ver
                     </Link>
-                    <button onClick={() => eliminar(t.id)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-all ml-auto">
-                      <Trash2 className="w-3.5 h-3.5"/>Eliminar
-                    </button>
                   </div>
                 </div>
               </motion.div>

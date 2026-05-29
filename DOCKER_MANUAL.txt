@@ -1,0 +1,461 @@
+═══════════════════════════════════════════════════════════════════════════════
+  SHOPPER · MANUAL DE USO DE DOCKER
+  Proyecto: NestJS (backend) + Next.js (frontend) + Postgres + Mongo + Redis
+═══════════════════════════════════════════════════════════════════════════════
+
+ÍNDICE
+─────────────────────────────────────────────────────────────────────────────
+  1. REQUISITOS PREVIOS
+  2. ESTRUCTURA DE ARCHIVOS DOCKER
+  3. PRIMER ARRANQUE (paso a paso)
+  4. COMANDOS DEL DÍA A DÍA
+  5. LOGS Y DEBUGGING
+  6. ACCESO A LAS BASES DE DATOS
+  7. RECONSTRUIR DESPUÉS DE CAMBIOS
+  8. PRODUCCIÓN
+  9. LIMPIEZA Y RESET
+ 10. PROBLEMAS COMUNES (TROUBLESHOOTING)
+ 11. PUERTOS Y URLs
+ 12. VARIABLES DE ENTORNO
+
+
+═══════════════════════════════════════════════════════════════════════════════
+1. REQUISITOS PREVIOS
+═══════════════════════════════════════════════════════════════════════════════
+
+  ▸ Docker Desktop instalado y CORRIENDO (abre Docker Desktop antes de
+    ejecutar cualquier comando).
+  ▸ Verificar instalación:
+
+      docker --version
+      docker compose version
+      docker info
+
+    Si "docker info" muestra error, abre Docker Desktop manualmente
+    y espera 30-60 segundos a que arranque el daemon.
+
+  ▸ Archivo backend/.env presente con todos los secretos (Cloudinary,
+    Resend, JWT, Wompi, OAuth, etc.). Sin este archivo el backend NO
+    arrancará correctamente.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+2. ESTRUCTURA DE ARCHIVOS DOCKER
+═══════════════════════════════════════════════════════════════════════════════
+
+  SHOPPER/
+  ├── docker-compose.yml            ← desarrollo (todo en uno, hot reload)
+  ├── docker-compose.prod.yml       ← overrides para producción
+  ├── .env.docker.example           ← variables que lee docker-compose
+  │
+  ├── backend/
+  │   ├── Dockerfile                ← multi-stage: deps → dev → build → prod
+  │   ├── .dockerignore
+  │   └── .env                      ← secretos del backend (NO subir a git)
+  │
+  └── frontend/
+      ├── Dockerfile                ← multi-stage: deps → dev → build → prod
+      ├── .dockerignore
+      └── next.config.ts            ← output: 'standalone' habilitado
+
+
+═══════════════════════════════════════════════════════════════════════════════
+3. PRIMER ARRANQUE (paso a paso)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Paso 1 — Abrir Docker Desktop y esperar a que el ícono se ponga verde.
+
+  Paso 2 — Ubicarse en la raíz del proyecto:
+
+      cd C:\Users\asust\SHOPPER
+
+  Paso 3 — Verificar que existe backend/.env (con tus secretos):
+
+      Get-Content backend\.env | Select-Object -First 5
+
+  Paso 4 — Construir las imágenes y levantar todo:
+
+      docker compose up --build
+
+    ▸ La PRIMERA vez tarda 5–15 minutos (descarga node:20, postgres:16,
+      mongo:7, redis:7-alpine + corre npm install en backend y frontend).
+    ▸ Las siguientes veces tarda 10–30 segundos (cache de Docker).
+    ▸ Si quieres que corra en segundo plano (modo daemon):
+
+          docker compose up --build -d
+
+  Paso 5 — Verificar que todo está arriba:
+
+      docker compose ps
+
+    Deberías ver 5 contenedores: shopper_backend, shopper_frontend,
+    shopper_postgres, shopper_mongo, shopper_redis — todos en estado
+    "Up" y los 3 de BD como "(healthy)".
+
+  Paso 6 — Abrir en el navegador:
+
+      Frontend:  http://localhost:3000
+      Backend:   http://localhost:3001
+
+
+═══════════════════════════════════════════════════════════════════════════════
+4. COMANDOS DEL DÍA A DÍA
+═══════════════════════════════════════════════════════════════════════════════
+
+  ► Levantar todo (modo interactivo, ves todos los logs):
+      docker compose up
+
+  ► Levantar en segundo plano (modo daemon):
+      docker compose up -d
+
+  ► Levantar reconstruyendo imágenes:
+      docker compose up --build
+
+  ► Parar todo (los datos se conservan en volúmenes):
+      docker compose down
+
+  ► Parar pero mantener corriendo (pausa rápida):
+      docker compose stop
+
+  ► Volver a arrancar lo que está parado:
+      docker compose start
+
+  ► Reiniciar un servicio puntual:
+      docker compose restart backend
+      docker compose restart frontend
+
+  ► Ver el estado de los contenedores:
+      docker compose ps
+
+  ► Listar todas las imágenes locales:
+      docker images
+
+  ► Listar todos los volúmenes (donde viven los datos):
+      docker volume ls
+
+
+═══════════════════════════════════════════════════════════════════════════════
+5. LOGS Y DEBUGGING
+═══════════════════════════════════════════════════════════════════════════════
+
+  ► Ver logs de TODOS los servicios en vivo:
+      docker compose logs -f
+
+  ► Ver logs de un servicio específico:
+      docker compose logs -f backend
+      docker compose logs -f frontend
+      docker compose logs -f postgres
+      docker compose logs -f mongo
+      docker compose logs -f redis
+
+  ► Ver últimas 100 líneas:
+      docker compose logs --tail 100 backend
+
+  ► Entrar a una shell dentro del contenedor (útil para debuggear):
+      docker compose exec backend sh
+      docker compose exec frontend sh
+
+    Dentro del contenedor puedes correr:
+      node --version
+      ls
+      cat package.json
+      npx nest --version
+
+    Salir con: exit
+
+  ► Ver procesos corriendo en un contenedor:
+      docker compose top backend
+
+  ► Inspeccionar configuración de un contenedor:
+      docker compose config
+
+
+═══════════════════════════════════════════════════════════════════════════════
+6. ACCESO A LAS BASES DE DATOS
+═══════════════════════════════════════════════════════════════════════════════
+
+  ► PostgreSQL (puerto 5432):
+
+    Desde tu máquina (con psql, DBeaver, TablePlus, pgAdmin, etc.):
+        Host:     localhost
+        Port:     5432
+        User:     postgres
+        Password: 1234
+        DB:       shopperdb
+
+    Desde la línea de comandos (entra al contenedor):
+        docker compose exec postgres psql -U postgres -d shopperdb
+
+    Listar tablas:
+        \dt
+
+    Salir:
+        \q
+
+  ► MongoDB (puerto 27017):
+
+    Desde tu máquina (MongoDB Compass, mongosh, etc.):
+        URI: mongodb://localhost:27017/shopper_db
+
+    Desde la línea de comandos:
+        docker compose exec mongo mongosh shopper_db
+
+    Listar colecciones:
+        show collections
+
+    Salir:
+        exit
+
+  ► Redis (puerto 6379):
+
+    Desde la línea de comandos:
+        docker compose exec redis redis-cli
+
+    Comandos útiles:
+        PING        → debe responder PONG
+        KEYS *      → ver todas las llaves (¡cuidado en prod!)
+        FLUSHALL    → borrar todo (¡cuidado!)
+
+    Salir:
+        exit
+
+  ► Correr el seeder de productos (desde el host, contra los contenedores):
+
+    Si tu seed.js usa las variables del .env, debe correrse DENTRO del
+    backend para que vea los hosts correctos (postgres, mongo, redis):
+
+        docker compose exec backend node seed.js
+
+
+═══════════════════════════════════════════════════════════════════════════════
+7. RECONSTRUIR DESPUÉS DE CAMBIOS
+═══════════════════════════════════════════════════════════════════════════════
+
+  ► Cambios en archivos .ts, .tsx, .js (código):
+    NO necesitas hacer nada. El hot reload los detecta automáticamente
+    porque el código está montado como bind mount.
+
+  ► Cambios en package.json (nuevas dependencias):
+    Necesitas reconstruir la imagen:
+
+        docker compose up --build backend
+        docker compose up --build frontend
+
+    O reconstruir solo una imagen sin levantar:
+
+        docker compose build backend
+
+  ► Cambios en Dockerfile, docker-compose.yml, .dockerignore:
+    Reconstruir todo:
+
+        docker compose down
+        docker compose up --build
+
+  ► Cambios solo en backend/.env:
+    Reiniciar el servicio (no requiere rebuild):
+
+        docker compose restart backend
+
+
+═══════════════════════════════════════════════════════════════════════════════
+8. PRODUCCIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+  El proyecto tiene dos variantes:
+
+    - docker-compose.yml         → desarrollo (hot reload, bind mounts)
+    - docker-compose.prod.yml    → override que usa las imágenes "prod"
+
+  ► Construir y levantar en modo producción:
+
+      docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+
+  ► Parar producción:
+
+      docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+  ► Ver logs en producción:
+
+      docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
+
+  ▸ Diferencias vs desarrollo:
+      • Backend ejecuta dist/main (código ya compilado, sin nodemon)
+      • Frontend ejecuta server.js (Next.js standalone, sin next dev)
+      • No hay bind mounts, así que cambios en el código NO se reflejan
+        sin un rebuild
+      • Imágenes mucho más pequeñas (solo prod deps + código compilado)
+
+  ▸ Antes de levantar prod, edita las variables públicas en
+    .env.docker.example (cópialo a .env) si tu API/sitio cambian de URL:
+
+        NEXT_PUBLIC_API_URL=https://api.tudominio.com
+        NEXT_PUBLIC_SITE_URL=https://tudominio.com
+
+
+═══════════════════════════════════════════════════════════════════════════════
+9. LIMPIEZA Y RESET
+═══════════════════════════════════════════════════════════════════════════════
+
+  ► Parar y borrar contenedores (DATOS SE CONSERVAN):
+      docker compose down
+
+  ► Parar, borrar contenedores Y BORRAR DATOS de las BDs:
+      docker compose down -v
+      ⚠️  Esto borra postgres_data, mongo_data, redis_data.
+
+  ► Borrar imágenes locales del proyecto:
+      docker compose down --rmi local
+
+  ► Borrar TODO lo del proyecto (contenedores + volúmenes + imágenes):
+      docker compose down -v --rmi local
+
+  ► Liberar espacio en Docker (cache, imágenes huérfanas, etc.):
+      docker system prune -a
+
+      ⚠️  Esto borra TODAS las imágenes que no estén en uso, no solo las
+          de SHOPPER. Útil cuando Docker ocupa muchos GB en disco.
+
+  ► Borrar solo el cache de builds:
+      docker builder prune
+
+  ► Ver cuánto espacio usa Docker:
+      docker system df
+
+
+═══════════════════════════════════════════════════════════════════════════════
+10. PROBLEMAS COMUNES (TROUBLESHOOTING)
+═══════════════════════════════════════════════════════════════════════════════
+
+  ✗ "Cannot connect to the Docker daemon"
+    → Docker Desktop no está corriendo. Ábrelo y espera 30-60 segundos.
+
+  ✗ "Port is already allocated" (3000, 3001, 5432, 27017, 6379)
+    → Tienes algo más usando ese puerto. Cierra la app que lo usa, o
+      cambia el puerto en docker-compose.yml. Para ver qué lo usa:
+
+          netstat -ano | findstr :3001
+
+  ✗ El backend dice "ECONNREFUSED 127.0.0.1:5432"
+    → Significa que está intentando conectar a localhost en vez del
+      contenedor postgres. Verifica que docker-compose.yml tenga:
+          DB_HOST: postgres
+          MONGODB_URI: mongodb://mongo:27017/...
+          REDIS_HOST: redis
+      Y que el backend lea esas variables de entorno (no hardcoded).
+
+  ✗ "npm ERR! ERESOLVE could not resolve" durante el build
+    → Conflicto de peer dependencies. El Dockerfile ya usa
+      --legacy-peer-deps. Si aparece otro distinto, prueba:
+
+          docker compose build --no-cache backend
+
+  ✗ "lock file does not satisfy" durante el build
+    → package.json y package-lock.json desincronizados. El Dockerfile
+      ya usa "npm install" (no "npm ci") justamente por esto.
+      Para regenerar el lock en local:
+
+          cd backend
+          npm install
+
+  ✗ El frontend no detecta cambios en archivos (hot reload roto)
+    → En Windows, Next.js a veces necesita polling. Edita
+      docker-compose.yml en el servicio "frontend" y agrega:
+
+          environment:
+            WATCHPACK_POLLING: "true"
+            CHOKIDAR_USEPOLLING: "true"
+
+      Luego: docker compose up --build frontend
+
+  ✗ "Cannot find module 'xxx'" después de instalar nueva dependencia
+    → Reconstruye la imagen:
+
+          docker compose up --build backend       (o frontend)
+
+  ✗ Cambié backend/.env pero el backend no ve los nuevos valores
+    → docker compose restart backend
+
+  ✗ Quiero borrar la BD y empezar desde cero
+    → docker compose down -v && docker compose up --build
+
+  ✗ Docker dice "no space left on device"
+    → docker system prune -a -f
+      docker volume prune -f
+
+  ✗ El contenedor muere apenas arranca
+    → Mira los logs para saber por qué:
+          docker compose logs backend
+      Causas típicas: falta una variable en .env, error de TypeScript,
+      puerto ocupado, BD no disponible aún.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+11. PUERTOS Y URLs
+═══════════════════════════════════════════════════════════════════════════════
+
+  Servicio        Puerto host    URL / Conexión
+  ─────────────────────────────────────────────────────────────────────────
+  Frontend        3000           http://localhost:3000
+  Backend (API)   3001           http://localhost:3001
+  PostgreSQL      5432           postgres://postgres:1234@localhost:5432/shopperdb
+  MongoDB         27017          mongodb://localhost:27017/shopper_db
+  Redis           6379           redis://localhost:6379
+
+  Entre contenedores (red interna de docker-compose) los hosts son los
+  NOMBRES de servicio, no localhost:
+
+      backend → postgres:5432
+      backend → mongo:27017
+      backend → redis:6379
+
+
+═══════════════════════════════════════════════════════════════════════════════
+12. VARIABLES DE ENTORNO
+═══════════════════════════════════════════════════════════════════════════════
+
+  Hay TRES fuentes de variables:
+
+  ► backend/.env
+      Secretos y configuración del backend (Cloudinary, Resend, JWT,
+      Wompi, OAuth, Gemini, etc.). docker-compose lo lee con env_file.
+
+  ► docker-compose.yml (sección environment de cada servicio)
+      Sobrescribe DB_HOST, MONGODB_URI, REDIS_HOST para que apunten a
+      los contenedores en vez de 127.0.0.1.
+
+  ► .env (en la raíz, copiado de .env.docker.example)
+      Variables que lee docker-compose mismo: usuario/contraseña de
+      Postgres, URLs públicas del frontend en producción.
+
+  Orden de precedencia (de menor a mayor):
+      env_file < environment de docker-compose < args de build
+
+  ⚠️  IMPORTANTE: backend/.env NUNCA debe subirse al repositorio.
+      Si alguna vez lo subiste, ROTA todos los secretos:
+        - JWT_SECRET, JWT_REFRESH_SECRET
+        - CLOUDINARY_API_SECRET
+        - RESEND_API_KEY
+        - GEMINI_API_KEY
+        - GOOGLE_CLIENT_SECRET, FACEBOOK_APP_SECRET
+        - WOMPI_PRIVATE_KEY, WOMPI_INTEGRITY_SECRET, WOMPI_EVENTS_SECRET
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ATAJOS RÁPIDOS (cheat sheet)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Arrancar todo .......................... docker compose up -d
+  Parar todo ............................. docker compose down
+  Ver logs en vivo ....................... docker compose logs -f
+  Reiniciar backend ...................... docker compose restart backend
+  Shell en backend ....................... docker compose exec backend sh
+  Shell en postgres ...................... docker compose exec postgres psql -U postgres -d shopperdb
+  Reconstruir tras cambiar package.json .. docker compose up --build
+  Reset total (borra BDs) ................ docker compose down -v
+  Estado de contenedores ................. docker compose ps
+  Producción ............................. docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  FIN DEL MANUAL
+═══════════════════════════════════════════════════════════════════════════════

@@ -27,7 +27,7 @@ export default function AdminUsersPage() {
 
   const cambiarRol = async (id:string, nuevoRol:string) => {
     try {
-      await api.put(`/users/${id}`, { role: nuevoRol });
+      await api.patch(`/users/${id}/role`, { role: nuevoRol });
       toast.success('Rol actualizado');
       cargar();
     } catch { toast.error('Error al cambiar rol'); }
