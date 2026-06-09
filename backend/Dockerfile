@@ -33,5 +33,8 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm install --omit=dev --legacy-peer-deps --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/dist ./dist
+# Scripts de inicialización/seed de la BD (migrate, create-admins, seed) y el SQL
+COPY scripts ./scripts
+COPY db ./db
 EXPOSE 3001
 CMD ["node", "dist/main"]
