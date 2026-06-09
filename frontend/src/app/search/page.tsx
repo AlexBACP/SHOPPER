@@ -3,7 +3,7 @@ import { useEffect, useState, Suspense, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Package, Store, X, ShoppingCart, CheckCircle, Heart, ShieldCheck,
+  Search, Package, Store, X, CheckCircle, Heart, ShieldCheck,
   Laptop, Shirt, Home as HomeIcon, Palette, Utensils, Dumbbell, Sparkles, Baby,
   Plus, SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, Check,
 } from 'lucide-react';

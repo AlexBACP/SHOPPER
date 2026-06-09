@@ -2758,6 +2758,19 @@ mark.search-highlight {
   .edsr-side.collapsed { display: none; }
 }
 
+/* Toolbar de búsqueda en móvil: apila tabs y orden; tabs deslizables */
+@media (max-width: 640px) {
+  .edsr-toolbar { grid-template-columns: 1fr; gap: 12px; }
+  .edsr-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .edsr-tabs::-webkit-scrollbar { display: none; }
+  .edsr-tabs button { flex: 0 0 auto; }
+  .edsr-sort { justify-content: space-between; }
+}
+
 /* —— Sección de tiendas en resultados —— */
 .edsr-stores-h {
   display: flex; align-items: center; gap: 10px;

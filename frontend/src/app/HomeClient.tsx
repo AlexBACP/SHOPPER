@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, MotionConfig, useScroll, useTransform, useSpring } from 'framer-motion';
 import {
-  ShieldCheck, ArrowRight, ArrowUpRight, Plus, Check, Heart, Package, Sparkles, Quote,
+  ShieldCheck, ArrowRight, ArrowUpRight, Plus, Check, Heart, Sparkles, Quote,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Store as TipoTienda } from '@/types';
@@ -14,7 +14,7 @@ import Testimonios from '@/components/animated/EditorialTestimonials';
 import CategoryAccordion from '@/components/animated/CategoryAccordion';
 import TimelineContent from '@/components/animated/TimelineContent';
 import StoresCarousel from '@/components/animated/StoresCarousel';
-import { getProductImage, getProductImageByTitle, getLocalImageByTitle } from '@/data/productImages';
+import { getProductImageByTitle, getLocalImageByTitle } from '@/data/productImages';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);

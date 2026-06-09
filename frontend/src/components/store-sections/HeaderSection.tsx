@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Package, Star, Share2, CheckCircle, ShieldCheck, MessageCircle } from 'lucide-react';
+import { Star, Share2, CheckCircle, ShieldCheck, MessageCircle } from 'lucide-react';
 import { useStorefront } from './StorefrontContext';
 
 /**
