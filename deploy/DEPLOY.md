@@ -11,15 +11,16 @@ Arquitectura: **Nginx** (puerto 80/443, SSL) → reverse proxy → contenedores 
 
 En el panel de tu registrador (donde compraste `proyectoscampus.top`), crea **2 registros A**:
 
-| Tipo | Nombre / Host | Valor (apunta a)   | TTL  |
-|------|---------------|--------------------|------|
-| A    | `@`           | `185.245.182.220`  | Auto |
-| A    | `api`         | `185.245.182.220`  | Auto |
-| A    | `www`         | `185.245.182.220`  | Auto (opcional) |
+Servidor COMPARTIDO: cada proyecto vive en su propio subdominio.
 
-> El DNS puede tardar de minutos a unas horas en propagar.
-> Verifica con: `nslookup proyectoscampus.top` y `nslookup api.proyectoscampus.top`
-> (deben devolver `185.245.182.220`).
+| Tipo | Nombre / Host  | Valor (apunta a)   | TTL  |
+|------|----------------|--------------------|------|
+| A    | `shopper`      | `185.245.182.220`  | Auto |
+| A    | `shopper-api`  | `185.245.182.220`  | Auto |
+
+> Si el dominio ya tiene un comodín `*` → `185.245.182.220`, estos registros
+> son opcionales (el comodín ya cubre cualquier subdominio).
+> Verifica con: `nslookup shopper.proyectoscampus.top` (debe devolver `185.245.182.220`).
 
 ---
 
@@ -131,9 +132,9 @@ curl http://127.0.0.1:3001      # backend responde
 ## 7. Configurar Nginx
 
 ```bash
-cp deploy/nginx/proyectoscampus.conf /etc/nginx/sites-available/proyectoscampus
-ln -s /etc/nginx/sites-available/proyectoscampus /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default      # quita la página por defecto
+cp deploy/nginx/proyectoscampus.conf /etc/nginx/sites-available/shopper
+ln -s /etc/nginx/sites-available/shopper /etc/nginx/sites-enabled/
+# NO borres el default ni otros sites: hay más proyectos en este servidor
 
 nginx -t            # valida la sintaxis
 systemctl reload nginx
@@ -146,7 +147,7 @@ Ahora `http://proyectoscampus.top` ya debería mostrar el sitio (sin candado tod
 ## 8. Activar HTTPS (SSL gratis con Let's Encrypt)
 
 ```bash
-certbot --nginx -d proyectoscampus.top -d www.proyectoscampus.top -d api.proyectoscampus.top
+certbot --nginx -d shopper.proyectoscampus.top -d shopper-api.proyectoscampus.top
 ```
 - Pon tu email, acepta los términos.
 - Elige **redirigir HTTP → HTTPS** cuando pregunte.
