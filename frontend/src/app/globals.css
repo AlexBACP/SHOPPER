@@ -2700,6 +2700,47 @@ mark.search-highlight {
 .edsr-select:hover { border-color: var(--ink); }
 .edsr-select:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* —— Dropdown de orden personalizado (reemplaza el <select> nativo) —— */
+.edsr-sortdd { position: relative; }
+.edsr-sortdd-btn {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-width: 152px;
+  padding: 9px 12px 9px 16px;
+  border: 1px solid var(--ed-hairline);
+  border-radius: var(--r-sm);
+  background: var(--bone-2);
+  font-family: var(--font-sans); font-weight: 600;
+  font-size: 13px; color: var(--ink);
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+}
+.edsr-sortdd-btn:hover { border-color: var(--ink); }
+.edsr-sortdd-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.edsr-sortdd-btn .chev { color: var(--ink-soft); transition: transform .25s var(--ease); }
+.edsr-sortdd-btn .chev.open { transform: rotate(180deg); }
+
+.edsr-sortdd-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 40;
+  min-width: 100%;
+  list-style: none; margin: 0; padding: 6px;
+  background: var(--bone-2);
+  border: 1px solid var(--ed-hairline);
+  border-radius: var(--r-md);
+  box-shadow: 0 14px 36px rgba(40, 30, 18, .18), 0 4px 10px rgba(40, 30, 18, .08);
+}
+.edsr-sortdd-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  width: 100%; padding: 9px 12px;
+  border: 0; background: transparent; cursor: pointer;
+  border-radius: var(--r-sm);
+  font-family: var(--font-sans); font-weight: 500; font-size: 13px;
+  color: var(--ink); white-space: nowrap; text-align: left;
+  transition: background .15s, color .15s;
+}
+.edsr-sortdd-item:hover { background: var(--bone-3); }
+.edsr-sortdd-item.on { color: var(--primary); font-weight: 700; }
+.edsr-sortdd-item svg { color: var(--primary); flex: none; }
+
 /* Botón mobile para abrir filtros */
 .edsr-filters-btn {
   display: none;

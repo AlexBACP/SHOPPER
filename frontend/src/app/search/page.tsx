@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState, Suspense, useCallback } from 'react';
+import { useEffect, useState, Suspense, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Package, Store, X, ShoppingCart, CheckCircle, Heart, ShieldCheck,
   Laptop, Shirt, Home as HomeIcon, Palette, Utensils, Dumbbell, Sparkles, Baby,
-  Plus, SlidersHorizontal, ChevronLeft, ChevronRight,
+  Plus, SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, Check,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Link from 'next/link';
@@ -40,6 +40,69 @@ const SORT_OPTS: { label: string; value: SortKey }[] = [
   { label: 'Precio ↓',    value: 'price_desc' },
   { label: 'Nombre A-Z',  value: 'name'       },
 ];
+
+/* Dropdown de orden personalizado — reemplaza el <select> nativo
+   para controlar el estilo del menú (el nativo lo pinta el sistema). */
+function SortDropdown({ value, onChange }: { value: SortKey; onChange: (v: SortKey) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = SORT_OPTS.find(o => o.value === value) ?? SORT_OPTS[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, [open]);
+
+  return (
+    <div className="edsr-sortdd" ref={ref}>
+      <button
+        type="button"
+        className="edsr-sortdd-btn"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Ordenar resultados"
+      >
+        <span>{current.label}</span>
+        <ChevronDown className={'chev w-4 h-4' + (open ? ' open' : '')} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.ul
+            className="edsr-sortdd-menu"
+            role="listbox"
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: [0.22, 0.61, 0.36, 1] }}
+          >
+            {SORT_OPTS.map(o => (
+              <li key={o.value} role="option" aria-selected={o.value === value}>
+                <button
+                  type="button"
+                  className={'edsr-sortdd-item' + (o.value === value ? ' on' : '')}
+                  onClick={() => { onChange(o.value); setOpen(false); }}
+                >
+                  {o.label}
+                  {o.value === value && <Check className="w-4 h-4" />}
+                </button>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function SearchContent() {
   const sp     = useSearchParams();
@@ -314,14 +377,7 @@ function SearchContent() {
                     {mFilters ? 'Ocultar' : 'Filtros'}
                   </button>
                   <span className="lbl hidden sm:inline">Orden</span>
-                  <select
-                    className="edsr-select"
-                    value={sortBy}
-                    onChange={e => setSortBy(e.target.value as SortKey)}
-                    aria-label="Ordenar resultados"
-                  >
-                    {SORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <SortDropdown value={sortBy} onChange={setSortBy} />
                 </div>
               </div>
 
