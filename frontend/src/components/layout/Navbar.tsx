@@ -294,7 +294,7 @@ export default function Navbar() {
           </div>
 
           {/* Búsqueda - píldora */}
-          <div ref={refBusqueda} className="flex-1 max-w-md xl:max-w-lg relative ml-auto">
+          <div ref={refBusqueda} className="hidden md:block flex-1 min-w-0 max-w-md xl:max-w-lg relative ml-auto">
             <div className="relative flex items-center gap-2.5 bg-[var(--bone-2)] border-[1.5px] border-[var(--line)] rounded-full px-4 py-2.5 focus-within:border-[var(--primary)] focus-within:shadow-[0_0_0_4px_rgba(199,90,43,0.12)] transition-all">
               <Search className="w-[18px] h-[18px] text-[var(--ink-soft)] shrink-0" />
               <input
@@ -305,7 +305,7 @@ export default function Navbar() {
                 onFocus={() => { if (sugerencias.length > 0) setSugAbierto(true); }}
                 placeholder="Busca productos, tiendas, marcas…"
                 autoComplete="off"
-                className="flex-1 bg-transparent outline-none text-sm text-[var(--ink)] placeholder:text-[var(--ink-soft)]"
+                className="flex-1 min-w-0 bg-transparent outline-none text-sm text-[var(--ink)] placeholder:text-[var(--ink-soft)]"
               />
             </div>
 
@@ -367,7 +367,7 @@ export default function Navbar() {
           </div>
 
           {/* Acciones */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 ml-auto">
 
             {/* Wishlist */}
             <Link href="/wishlist"

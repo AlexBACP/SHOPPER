@@ -148,12 +148,17 @@ function SearchContent() {
       setProducts(resultados);
 
       const pub: StoreData[] = storesRes.data.filter((s: StoreData) => s.is_published);
-      setStores(busq.trim()
-        ? pub.filter(s =>
-            s.name.toLowerCase().includes(busq.toLowerCase()) ||
-            s.description?.toLowerCase().includes(busq.toLowerCase()),
-          )
-        : [],
+      // Tiendas que tienen productos en estos resultados (para mostrarlas al filtrar por categoría)
+      const idsConProductos = new Set(resultados.map(p => p.store_id));
+      setStores(
+        busq.trim()
+          ? pub.filter(s =>
+              s.name.toLowerCase().includes(busq.toLowerCase()) ||
+              s.description?.toLowerCase().includes(busq.toLowerCase()),
+            )
+          : cat
+            ? pub.filter(s => idsConProductos.has(s.id))
+            : [],
       );
     } catch {} finally { setLoading(false); }
   }, []);

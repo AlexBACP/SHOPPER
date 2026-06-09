@@ -1,7 +1,7 @@
 // src/orders/orders.service.ts
 import {
   Injectable, Inject, BadRequestException, NotFoundException,
-  ForbiddenException, UnauthorizedException,
+  ForbiddenException, UnauthorizedException, OnModuleInit, Logger,
 } from '@nestjs/common';
 import { Pool } from 'pg';
 import { MongoClient, ObjectId } from 'mongodb';
@@ -17,7 +17,11 @@ import { Order } from './order.interface';
 import { calcShippingCost } from '../shipping/shipping.constants';
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
+  private readonly logger = new Logger(OrdersService.name);
+  /** Minutos tras los cuales una orden 'pending' (pago no completado) se da por abandonada. */
+  private readonly EXPIRE_MINUTES = 60;
+
   constructor(
     @Inject(POSTGRES_POOL) private readonly pool:  Pool,
     @Inject(MONGO_CLIENT)  private readonly mongo: MongoClient,
@@ -29,6 +33,52 @@ export class OrdersService {
 
   private get products() {
     return this.mongo.db().collection('products');
+  }
+
+  // ── Expiración de órdenes de pago abandonadas ─────────
+  //  Caso: el comprador inicia el pago con Wompi (orden 'pending', stock ya
+  //  descontado) pero cierra la pestaña y Wompi nunca envía webhook. Sin esto,
+  //  ese stock quedaría "reservado" para siempre. Corre al arrancar y cada 15 min.
+  onModuleInit(): void {
+    const run = () => this.expirarOrdenesPendientes().catch(err =>
+      this.logger.error('Error expirando órdenes pendientes:', err));
+    setTimeout(run, 30_000);          // 30 s después de arrancar
+    setInterval(run, 15 * 60_000);    // cada 15 minutos
+  }
+
+  /** Cancela órdenes 'pending' más viejas que EXPIRE_MINUTES y devuelve su stock.
+   *  Las órdenes COD y las pagadas no quedan 'pending', así que no se tocan. */
+  async expirarOrdenesPendientes(): Promise<void> {
+    const { rows } = await this.pool.query(
+      `UPDATE orders
+         SET status = 'cancelled', updated_at = NOW()
+       WHERE status = 'pending'
+         AND created_at < NOW() - make_interval(mins => $1)
+       RETURNING id`,
+      [this.EXPIRE_MINUTES],
+    );
+    if (!rows.length) return;
+    for (const { id } of rows) {
+      await this.restaurarStock(id);
+    }
+    this.logger.log(`Expiradas ${rows.length} orden(es) de pago abandonado — stock devuelto.`);
+  }
+
+  /** Devuelve a MongoDB el stock que se descontó al crear la orden. */
+  private async restaurarStock(ordenId: string): Promise<void> {
+    const { rows: items } = await this.pool.query(
+      'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+      [ordenId],
+    );
+    for (const it of items) {
+      if (!it.product_id || !it.quantity) continue;
+      try {
+        await this.products.updateOne(
+          { _id: new ObjectId(it.product_id) },
+          { $inc: { stock: it.quantity }, $set: { updated_at: new Date() } },
+        );
+      } catch { /* product_id no es un ObjectId válido — ignorar */ }
+    }
   }
 
   // ── Checkout ──────────────────────────────────────────

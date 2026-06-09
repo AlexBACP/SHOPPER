@@ -5,8 +5,10 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Pool } from 'pg';
+import { MongoClient, ObjectId } from 'mongodb';
 import { Inject } from '@nestjs/common';
 import { POSTGRES_POOL } from '../database/postgres/postgres.provider';
+import { MONGO_CLIENT } from '../database/mongodb/mongodb.provider';
 import { WompiService } from '../wompi/wompi.service';
 
 interface EventoWompi {
@@ -34,8 +36,32 @@ export class WebhooksController {
 
   constructor(
     @Inject(POSTGRES_POOL) private readonly pool:  Pool,
+    @Inject(MONGO_CLIENT)  private readonly mongo: MongoClient,
     private readonly wompiService: WompiService,
   ) {}
+
+  /** Devuelve a MongoDB el stock que se descontó al crear la orden. */
+  private async restaurarStock(ordenId: string): Promise<void> {
+    try {
+      const { rows: items } = await this.pool.query(
+        'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+        [ordenId],
+      );
+      const products = this.mongo.db().collection('products');
+      for (const it of items) {
+        if (!it.product_id || !it.quantity) continue;
+        try {
+          await products.updateOne(
+            { _id: new ObjectId(it.product_id) },
+            { $inc: { stock: it.quantity }, $set: { updated_at: new Date() } },
+          );
+        } catch { /* product_id no es un ObjectId válido — ignorar */ }
+      }
+      this.logger.log(`Stock restaurado para la orden cancelada ${ordenId}`);
+    } catch (err) {
+      this.logger.error(`No se pudo restaurar stock de la orden ${ordenId}:`, err);
+    }
+  }
 
   @Post('wompi')
   @HttpCode(200)
@@ -79,13 +105,19 @@ export class WebhooksController {
 
     // 4. Actualizar la orden en PostgreSQL
     try {
-      await this.pool.query(
+      const res = await this.pool.query(
         `UPDATE orders
          SET status = $1, updated_at = NOW()
          WHERE id = $2 AND status IN ('pending', 'pending_payment')`,
         [nuevoEstado, ordenId],
       );
       this.logger.log(`Orden ${ordenId} actualizada a '${nuevoEstado}'`);
+
+      // Si el pago falló y la orden se canceló AHORA (rowCount>0, no un evento
+      // repetido), devolvemos el stock que se había descontado al crearla.
+      if (nuevoEstado === 'cancelled' && (res.rowCount ?? 0) > 0) {
+        await this.restaurarStock(ordenId);
+      }
     } catch (err) {
       this.logger.error(`Error actualizando orden ${ordenId}:`, err);
     }
