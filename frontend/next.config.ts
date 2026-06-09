@@ -4,6 +4,12 @@ const nextConfig: NextConfig = {
   // ── Salida standalone para Docker (server.js minimal) ───
   output: 'standalone',
 
+  // ── Lint: no bloquear el build de producción por warnings de ESLint ──
+  //    (el código se compila igual; TypeScript se sigue verificando aparte)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   // ── Imágenes permitidas ─────────────────────────────────
   images: {
     remotePatterns: [

@@ -177,7 +177,7 @@ export default function StoresCarousel({ tiendas, productCounts }: Props) {
   if (!tiendas || tiendas.length === 0) return null;
 
   const half = Math.ceil(tiendas.length / 2);
-  let col1 = tiendas.slice(0, half);
+  const col1 = tiendas.slice(0, half);
   let col2 = tiendas.slice(half);
 
   if (col2.length < Math.max(2, half - 1)) {
