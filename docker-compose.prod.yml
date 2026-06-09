@@ -12,14 +12,9 @@
 # ─────────────────────────────────────────────────────────────
 
 services:
-  # Bases de datos: SOLO red interna de compose, sin puertos al host
-  postgres:
-    ports: []
-  mongo:
-    ports: []
-  redis:
-    ports: []
-
+  # NOTA: los puertos del host se definen en docker-compose.yml (base) y se
+  # controlan con las variables FRONTEND_HOST_PORT / BACKEND_HOST_PORT del .env.
+  # No se redefinen aquí porque Compose CONCATENA listas de ports (no las reemplaza).
   backend:
     build:
       context: ./backend
@@ -29,9 +24,6 @@ services:
       # En prod estas URLs deben ser el dominio público (override del localhost de dev)
       FRONTEND_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
       BACKEND_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-    # Solo accesible desde el propio servidor (Nginx hace de proxy)
-    ports:
-      - "127.0.0.1:${BACKEND_HOST_PORT:-3031}:3001"
     volumes: []        # quita bind mounts de dev
     command: ["node", "dist/main"]
 
@@ -47,7 +39,5 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-    ports:
-      - "127.0.0.1:${FRONTEND_HOST_PORT:-3030}:3000"
     volumes: []        # quita bind mounts de dev
     command: ["node", "server.js"]
