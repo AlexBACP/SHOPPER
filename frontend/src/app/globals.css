@@ -464,6 +464,7 @@ input, textarea, select { color-scheme: light; }
   transition: transform .25s var(--ease), background .2s, color .2s;
 }
 .btn-ghost:hover { background: var(--ink); color: var(--bone-2); }
+.btn-ghost:active { transform: scale(0.98); }
 
 /* Claro — sobre fondos oscuros / verde */
 .btn-light {
@@ -484,6 +485,7 @@ input, textarea, select { color-scheme: light; }
   transition: transform .25s var(--ease), box-shadow .25s var(--ease);
 }
 .btn-light:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.btn-light:active { transform: translateY(0) scale(0.98); }
 
 /* Agregar al carrito — acción en terracota */
 .btn-add-cart {
@@ -528,6 +530,19 @@ input, textarea, select { color-scheme: light; }
 .btn-shimmer:hover::after {
   left: 160%;
   transition: left 0.45s ease;
+}
+
+/* Foco accesible (solo teclado) coherente en toda acción interactiva */
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-ghost:focus-visible,
+.btn-light:focus-visible,
+.btn-add-cart:focus-visible,
+.chip:focus-visible,
+.pcard-add:focus-visible,
+.pcard-fav:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -592,7 +607,14 @@ input, textarea, select { color-scheme: light; }
 }
 .pcard:hover .pcard-add { opacity: 1; transform: none; }
 .pcard-add:hover { background: var(--primary-2); }
+.pcard-add:active { transform: scale(.97); }
 .pcard-add.done { background: var(--selva); opacity: 1; transform: none; }
+
+/* En pantallas táctiles no hay hover → el botón "Agregar" debe verse siempre,
+   si no, en celular nadie podría agregar al carrito desde la tarjeta. */
+@media (hover: none) {
+  .pcard-add { opacity: 1; transform: none; }
+}
 
 /* Body compacto — marketplace, no magazine */
 .pcard-body { padding: 12px 14px 14px; }
@@ -1137,7 +1159,7 @@ mark.search-highlight {
 @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
 
 /* ── secciones genéricas ── */
-.sec { padding: 84px 0; }
+.sec { padding: clamp(56px, 8vw, 92px) 0; }
 .sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 44px; }
 .sec-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(30px,3.4vw,46px); letter-spacing: -.02em; line-height: 1; }
 .sec-title .serif-it { color: var(--primary); }
@@ -1276,9 +1298,11 @@ mark.search-highlight {
 
 /* ── grilla de productos: filtros ── */
 .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 36px; }
-.chip { padding: 9px 18px; border-radius: 100px; border: 1.5px solid var(--line); background: var(--bone-2); font-size: 14px; font-weight: 500; color: var(--ink); transition: all .2s var(--ease); }
-.chip:hover { border-color: var(--ink); }
+.chip { padding: 9px 18px; border-radius: 100px; border: 1.5px solid var(--line); background: var(--bone-2); font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer; transition: all .2s var(--ease); }
+.chip:hover { border-color: var(--ink); background: var(--bone-3); }
+.chip:active { transform: scale(.96); }
 .chip.on { background: var(--ink); color: var(--bone-2); border-color: var(--ink); }
+.chip.on:hover { background: var(--primary-2); border-color: var(--primary-2); }
 .pgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
 @media (max-width: 1200px) { .pgrid { grid-template-columns: repeat(4, 1fr); } }
 
@@ -1469,7 +1493,7 @@ mark.search-highlight {
   border-top: 1px solid var(--ed-hairline);
 }
 .ed-stat {
-  padding: 22px 22px 0 0;
+  padding: 26px 24px 0 0;
   border-right: 1px solid var(--ed-hairline);
   position: relative;
 }
@@ -1477,11 +1501,11 @@ mark.search-highlight {
 .ed-stat .ed-stat-n {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(28px, 3vw, 40px);
+  font-size: clamp(30px, 3.2vw, 44px);
   line-height: 1;
-  letter-spacing: -.02em;
+  letter-spacing: -.025em;
   color: var(--ink);
-  display: flex; align-items: baseline; gap: 4px;
+  display: flex; align-items: baseline; gap: 5px;
 }
 .ed-stat .ed-stat-n .plus {
   font-family: var(--font-serif);
@@ -1491,11 +1515,12 @@ mark.search-highlight {
   color: var(--primary);
 }
 .ed-stat .ed-stat-l {
-  margin-top: 8px;
-  font-size: 11.5px;
-  letter-spacing: .12em;
+  margin-top: 11px;
+  font-size: 11px;
+  letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--ink-soft);
+  line-height: 1.35;
 }
 
 /* Polaroid stack — visual derecho del hero */
@@ -1574,15 +1599,22 @@ mark.search-highlight {
 }
 
 @media (max-width: 980px) {
-  .ed-hero-grid { grid-template-columns: 1fr; gap: 40px; }
-  .ed-stack { height: 420px; }
+  .ed-hero { padding-bottom: 64px; }
+  .ed-hero-grid { grid-template-columns: 1fr; gap: 48px; }
+  .ed-stack { height: clamp(360px, 74vw, 440px); margin-top: 6px; }
   .ed-wordmark .row.indent { padding-left: 0; }
-  .ed-float-quote { left: 8px; bottom: 8%; max-width: 220px; }
+  .ed-float-quote { left: 8px; bottom: 6%; max-width: 240px; }
 }
 @media (max-width: 560px) {
-  .ed-stats { grid-template-columns: 1fr 1fr; }
-  .ed-stat:nth-child(2) { border-right: none; }
+  .ed-hero { padding-bottom: 52px; }
+  .ed-stats { grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .ed-stat { padding-right: 18px; }
+  .ed-stat:nth-child(2) { border-right: none; padding-right: 0; }
   .ed-stat:nth-child(3) { grid-column: 1 / -1; border-top: 1px solid var(--ed-hairline); border-right: none; padding-top: 22px; margin-top: 8px; }
+  /* Polaroids con un pelín más de aire; ocultamos la cita decorativa
+     en pantallas muy chicas para que no se encime con las fotos. */
+  .ed-stack { height: 340px; }
+  .ed-float-quote { display: none; }
   .ed-sticker { width: 84px; height: 84px; font-size: 10.5px; }
   .ed-sticker .num { font-size: 18px; }
 }
@@ -4167,6 +4199,14 @@ mark.search-highlight {
 }
 .pcard:hover .pcard-img img { transform: scale(1.045); }
 .scard:hover .scard-img img { transform: scale(1.04); }
+
+/* Foco de teclado en tarjetas-enlace de tienda/producto (accesibilidad) */
+.scard a:focus-visible,
+.pcard a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: var(--r-md);
+}
 
 /* —— Botones con press feedback consistente —— */
 .btn,
