@@ -156,13 +156,7 @@
 ═══════════════════════════════════════════════════════════════════ */
 
 *, *::before, *::after { box-sizing: border-box; }
-
-/* Anti scroll horizontal en móvil: recortamos la X en la raíz Y el body.
-   `clip` (no `hidden`) evita el scroll lateral sin romper position:sticky. */
-html {
-  scroll-behavior: smooth;
-  overflow-x: clip;
-}
+html { scroll-behavior: smooth; }
 
 body {
   background-color: var(--bone);
@@ -171,8 +165,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  overflow-x: clip;
-  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Grano de papel sutil sobre el lienzo, para dar calidez.
