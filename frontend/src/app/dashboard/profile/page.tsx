@@ -1,11 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Lock, ArrowLeft, Save, Eye, EyeOff, Shield, Loader2, CheckCircle } from 'lucide-react';
+import { User, Mail, Lock, ArrowLeft, Save, Eye, EyeOff, Shield, Loader2, CheckCircle, Package, Heart, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 import api from '@/lib/api';
+import { handleApiError } from '@/lib/errors';
 
 export default function ProfilePage() {
   const { user, setAuth } = useAuthStore();
@@ -28,7 +29,7 @@ export default function ProfilePage() {
       setAuth({ ...user, name }, useAuthStore.getState().accessToken ?? '', useAuthStore.getState().refreshToken ?? '');
       setSavedInfo(true); setTimeout(() => setSavedInfo(false), 2000);
       toast.success('Perfil actualizado');
-    } catch { toast.error('Error al actualizar'); } finally { setSavingInfo(false); }
+    } catch (e) { handleApiError(e, 'No pudimos actualizar tu perfil. Intenta de nuevo.'); } finally { setSavingInfo(false); }
   };
 
   const savePassword = async () => {
@@ -39,7 +40,7 @@ export default function ProfilePage() {
       await api.patch('/auth/change-password', { currentPassword: currentPwd, newPassword: newPwd });
       setCurrentPwd(''); setNewPwd('');
       toast.success('Contraseña actualizada');
-    } catch (e: any) { toast.error(e?.response?.data?.message ?? 'Error al cambiar contraseña'); }
+    } catch (e) { handleApiError(e, 'No pudimos cambiar tu contraseña. Verifica la contraseña actual e intenta de nuevo.'); }
     finally { setSavingPwd(false); }
   };
 
@@ -63,9 +64,9 @@ export default function ProfilePage() {
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-8 space-y-5">
         {/* Avatar y rol */}
         <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.4 }}
-          className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+          className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
           <div className="flex items-center gap-5 mb-5">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-3xl font-black text-white shadow-lg shrink-0">
+            <div className="w-20 h-20 rounded-2xl bg-[var(--primary)] flex items-center justify-center text-3xl font-black text-white shadow-lg shrink-0">
               {user.name?.[0]?.toUpperCase()}
             </div>
             <div>
@@ -79,12 +80,12 @@ export default function ProfilePage() {
           {/* Links rápidos */}
           <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[var(--border)]">
             {[
-              { href:'/orders',   label:'Mis pedidos', icon:'📦' },
-              { href:'/wishlist', label:'Favoritos',   icon:'❤️' },
-              { href:'/',         label:'Explorar',    icon:'🛍️' },
-            ].map(({ href, label, icon }) => (
+              { href:'/orders',   label:'Mis pedidos', Icon: Package },
+              { href:'/wishlist', label:'Favoritos',   Icon: Heart },
+              { href:'/',         label:'Explorar',    Icon: ShoppingBag },
+            ].map(({ href, label, Icon }) => (
               <a key={href} href={href} className="flex flex-col items-center gap-1.5 p-3 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] rounded-xl transition-colors text-center">
-                <span className="text-xl">{icon}</span>
+                <Icon className="w-5 h-5 text-[var(--text-secondary)]" />
                 <span className="text-xs font-semibold text-[var(--text-secondary)]">{label}</span>
               </a>
             ))}
@@ -93,14 +94,14 @@ export default function ProfilePage() {
 
         {/* Info personal */}
         <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1, duration:0.4 }}
-          className="bg-white border border-[var(--border)] rounded-xl p-6 shadow-sm">
+          className="bg-[var(--bone-2)] border border-[var(--border)] rounded-xl p-6 shadow-sm">
           <h3 className="font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2"><User className="w-5 h-5 text-[var(--accent)]"/>Información personal</h3>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Nombre completo</label>
               <div className="relative">
                 <input value={name} onChange={e=>setName(e.target.value)} type="text"
-                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
+                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
                 <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"/>
               </div>
             </div>
@@ -122,14 +123,14 @@ export default function ProfilePage() {
 
         {/* Cambiar contraseña */}
         <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2, duration:0.4 }}
-          className="bg-white border border-[var(--border)] rounded-xl p-6 shadow-sm">
+          className="bg-[var(--bone-2)] border border-[var(--border)] rounded-xl p-6 shadow-sm">
           <h3 className="font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2"><Lock className="w-5 h-5 text-[var(--accent)]"/>Cambiar contraseña</h3>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Contraseña actual</label>
               <div className="relative">
                 <input type={showCur?'text':'password'} value={currentPwd} onChange={e=>setCurrentPwd(e.target.value)} placeholder="••••••••"
-                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
+                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
                 <button type="button" onClick={()=>setShowCur(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                   {showCur?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}
                 </button>
@@ -139,7 +140,7 @@ export default function ProfilePage() {
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Nueva contraseña</label>
               <div className="relative">
                 <input type={showNew?'text':'password'} value={newPwd} onChange={e=>setNewPwd(e.target.value)} placeholder="Mínimo 6 caracteres"
-                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
+                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
                 <button type="button" onClick={()=>setShowNew(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                   {showNew?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}
                 </button>

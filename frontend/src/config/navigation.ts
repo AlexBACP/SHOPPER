@@ -1,13 +1,15 @@
 // ── Categorías ────────────────────────────────────────────────────────
+// Fuente única de categorías (slug + etiqueta). El filtro de /search usa
+// el parámetro `category=<slug>`.
 export const CATEGORIES = [
-  { label: 'Moda y Ropa',  href: '/search?q=moda'        },
-  { label: 'Hogar y Deco', href: '/search?q=hogar'       },
-  { label: 'Tecnología',   href: '/search?q=tecnologia'  },
-  { label: 'Artesanías',   href: '/search?q=artesanias'  },
-  { label: 'Alimentos',    href: '/search?q=alimentos'   },
-  { label: 'Deportes',     href: '/search?q=deportes'    },
-  { label: 'Belleza',      href: '/search?q=belleza'     },
-  { label: 'Niños',        href: '/search?q=ninos'       },
+  { slug: 'moda',       label: 'Moda y Ropa'  },
+  { slug: 'hogar',      label: 'Hogar y Deco' },
+  { slug: 'tecnologia', label: 'Tecnología'   },
+  { slug: 'artesanias', label: 'Artesanías'   },
+  { slug: 'alimentos',  label: 'Alimentos'    },
+  { slug: 'deportes',   label: 'Deportes'     },
+  { slug: 'belleza',    label: 'Belleza'      },
+  { slug: 'ninos',      label: 'Niños'        },
 ] as const;
 
 // ── Links footer ──────────────────────────────────────────────────────

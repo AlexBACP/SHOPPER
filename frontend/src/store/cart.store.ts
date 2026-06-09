@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { IVA_RATE } from '@/config/constants';
 import api from '@/lib/api';
 
@@ -101,26 +101,32 @@ export const useCartStore = create<CartStore>()(
 
       removeCoupon: () => set({ coupon: null, discount: 0 }),
 
+      // Suma de precios de los productos. OJO: en Shopper los precios YA
+      // incluyen IVA (19%), así que esto es el monto bruto con IVA dentro.
       subtotal: () =>
         get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
 
       discountAmount: () =>
         get().subtotal() * (get().discount / 100),
 
-      ivaAmount: () =>
-        (get().subtotal() - get().discountAmount()) * IVA_RATE,
-
-      total: () => {
-        const sub  = get().subtotal();
-        const disc = get().discountAmount();
-        return sub - disc + (sub - disc) * IVA_RATE;
+      // IVA contenido dentro del precio (informativo, NO se suma al total).
+      // base = bruto / 1.19  →  iva = bruto - base = bruto * 0.19/1.19
+      ivaAmount: () => {
+        const bruto = get().subtotal() - get().discountAmount();
+        return bruto - bruto / (1 + IVA_RATE);
       },
+
+      // Total de productos a pagar (IVA ya incluido). El envío se suma aparte
+      // en el checkout, no aquí.
+      total: () => get().subtotal() - get().discountAmount(),
 
       count: () =>
         get().items.reduce((sum, i) => sum + i.quantity, 0),
     }),
     {
       name:       'shopper-cart',
+      version:    1,
+      storage:    createJSONStorage(() => localStorage),
       partialize: (state) => ({
         items:    state.items,
         coupon:   state.coupon,

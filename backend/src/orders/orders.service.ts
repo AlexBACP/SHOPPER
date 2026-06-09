@@ -14,6 +14,7 @@ import { WompiService }         from '../wompi/wompi.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { Order } from './order.interface';
+import { calcShippingCost } from '../shipping/shipping.constants';
 
 @Injectable()
 export class OrdersService {
@@ -70,12 +71,17 @@ export class OrdersService {
       // para no bloquear el checkout por un cupón que venció justo ahora
     }
 
-    // 3. Total con descuento + IVA calculado en backend
-    const IVA_RATE  = 0.19;
+    // 3. Total con descuento + costo de envío calculado en backend.
+    //    IMPORTANTE: en Shopper los precios YA incluyen IVA (19%). NO se suma
+    //    IVA encima — el total de productos es (subtotal − descuento) y el IVA
+    //    va contenido en el precio. Sumarlo sobrecobraría al cliente.
     const subtotal  = dto.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const discount  = subtotal * (discountPct / 100);
     const baseNet   = subtotal - discount;
-    const total     = baseNet + baseNet * IVA_RATE;
+    // Costo de envío por zona (gratis sobre el umbral). Calculado en backend
+    // como fuente de verdad — no confiamos en lo que mande el frontend.
+    const shippingCost = calcShippingCost(dto.shipping_dept, subtotal);
+    const total     = baseNet + shippingCost;
 
     // 4. Transacción PostgreSQL — orden + items atómicos
     const client = await this.pool.connect();
@@ -85,20 +91,21 @@ export class OrdersService {
 
       const { rows: orderRows } = await client.query(
         `INSERT INTO orders
-           (buyer_id, status, total,
+           (buyer_id, status, total, shipping_cost,
             shipping_name, shipping_phone,
             shipping_address, shipping_city, shipping_dept,
-            shipping_notes, coupon_code, discount_pct)
-         VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            shipping_notes, coupon_code, discount_pct, payment_method)
+         VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING *`,
         [
-          buyerId, total,
+          buyerId, total, shippingCost,
           dto.shipping_name,    dto.shipping_phone   ?? null,
           dto.shipping_address, dto.shipping_city,
           dto.shipping_dept    ?? null,
           dto.shipping_notes   ?? null,
           couponCode,
           discountPct,
+          dto.payment_method   ?? null,
         ],
       );
       order = orderRows[0];
@@ -174,12 +181,24 @@ export class OrdersService {
       image:    i.image || '', // Valor por defecto si no hay imagen
     }));
 
+    // Desglose para el resumen del correo (precios con IVA incluido).
+    const IVA_RATE   = 0.19;
+    const subtotal   = emailItems.reduce((s, i) => s + i.price * i.quantity, 0);
+    const discount   = subtotal * (Number(order.discount_pct ?? 0) / 100);
+    const baseNet    = subtotal - discount;
+    const shipping   = Number(order.shipping_cost ?? 0);
+    const ivaIncluded = baseNet - baseNet / (1 + IVA_RATE);
+
     // Email al comprador
     await this.emailService.sendOrderConfirmation({
       buyerName:       buyer.name,
       buyerEmail:      buyer.email,
       orderId:         order.id,
       items:           emailItems,
+      subtotal,
+      discount,
+      ivaIncluded,
+      shipping,
       total:           Number(order.total),
       shippingName:    dto.shipping_name,
       shippingAddress: dto.shipping_address,
@@ -188,7 +207,7 @@ export class OrdersService {
     });
 
     // Agrupar items por tienda para notificar a cada owner
-    const byStore: Record<string, EmailItem[]> = {}; // ✅ CORREGIDO: usando EmailItem[]
+    const byStore: Record<string, EmailItem[]> = {}; // CORREGIDO: usando EmailItem[]
     for (const item of order.items) {
       if (!byStore[item.store_id]) {
         byStore[item.store_id] = [];
@@ -198,7 +217,7 @@ export class OrdersService {
         sku:      item.sku,
         quantity: item.quantity,
         price:    Number(item.price),
-        image:    item.image || '', // ✅ Incluye la imagen
+        image:    item.image || '', // Incluye la imagen
       });
     }
 
@@ -341,6 +360,16 @@ export class OrdersService {
     const fullOrder = await this.checkout(buyerId, dto);
     const couponApplied = fullOrder.coupon_applied;
 
+    // Pago contra entrega: no pasa por pasarela. La orden queda confirmada y
+    // el pago se cobra en efectivo al momento de la entrega.
+    if (dto.payment_method === 'cod') {
+      await this.pool.query(
+        `UPDATE orders SET status = 'confirmed', updated_at = NOW() WHERE id = $1`,
+        [fullOrder.id],
+      ).catch(() => null);
+      return { orderId: fullOrder.id, urlPago: '', wompiConfigurado: false, couponApplied };
+    }
+
     // El checkout web de Wompi (CloudFront/WAF) BLOQUEA cualquier redirect-url
     // hacia http://localhost. Por eso el flujo real solo es posible con un
     // dominio público https://. En local (o con WOMPI_SIMULAR=true) usamos un
@@ -409,6 +438,31 @@ export class OrdersService {
       if (!ownerItems.length) {
         throw new ForbiddenException('Esta orden no contiene productos de tu tienda');
       }
+    }
+
+    // ── Requisito para marcar como 'shipped': transportadora + guía ──
+    // Aplica a cualquiera (owner o admin). La foto del paquete es opcional.
+    if (dto.status === 'shipped') {
+      if (!dto.carrier || !dto.tracking_number) {
+        throw new BadRequestException(
+          'Para marcar el pedido como enviado debes indicar la transportadora y el número de guía',
+        );
+      }
+      const { rows: updated } = await this.pool.query(
+        `UPDATE orders
+           SET status = 'shipped',
+               carrier = $1,
+               tracking_number = $2,
+               proof_image = $3,
+               shipped_at = NOW(),
+               updated_at = NOW()
+         WHERE id = $4
+         RETURNING *`,
+        [dto.carrier, dto.tracking_number.trim(), dto.proof_image ?? null, orderId],
+      );
+      const ordenEnviada: Order = updated[0];
+      this.notificarCambioEstado(ordenEnviada).catch(() => null);
+      return ordenEnviada;
     }
 
     const { rows: updated } = await this.pool.query(

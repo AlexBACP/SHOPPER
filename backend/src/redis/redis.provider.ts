@@ -9,8 +9,8 @@ export const redisProvider = {
       host: process.env.REDIS_HOST || 'localhost',
       port: Number(process.env.REDIS_PORT) || 6379,
     });
-    client.on('connect', () => console.log('✅ Redis conectado'));
-    client.on('error', (err) => console.error('❌ Redis error:', err));
+    client.on('connect', () => console.log(' Redis conectado'));
+    client.on('error', (err) => console.error(' Redis error:', err));
     return client;
   },
 };

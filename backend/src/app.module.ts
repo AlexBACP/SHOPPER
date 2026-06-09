@@ -22,11 +22,17 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { SearchModule }   from './search/search.module';
 import { ReviewsModule }  from './reviews/reviews.module';
 import { CouponsModule }  from './coupons/coupons.module';
+import { AiModule }       from './ai/ai.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
-    ThrottlerModule.forRoot([{ name: 'global', ttl: 60_000, limit: 60 }]),
+    ThrottlerModule.forRoot([
+      // Límite general por IP (todas las rutas). El de "hora" es un colchón amplio
+      // que no molesta al uso normal pero se endurece por ruta en los endpoints de IA.
+      { name: 'global', ttl: 60_000,    limit: 60   },
+      { name: 'hour',   ttl: 3_600_000, limit: 5000 },
+    ]),
     PostgresModule,
     MongodbModule,
     RedisModule,
@@ -46,6 +52,7 @@ import { CouponsModule }  from './coupons/coupons.module';
     SearchModule,
     ReviewsModule,
     CouponsModule,
+    AiModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

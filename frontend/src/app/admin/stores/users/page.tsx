@@ -5,6 +5,7 @@ import { Users, Search, Shield, ShoppingCart, Store, Crown, ArrowLeft, RefreshCw
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { handleApiError } from '@/lib/errors';
 
 const ROLES: Record<string,{label:string;color:string;icon:React.ElementType}> = {
   buyer:       { label:'Comprador',  color:'bg-green-100  text-green-700  border-green-200',  icon:ShoppingCart },
@@ -21,7 +22,7 @@ export default function AdminUsersPage() {
   const cargar = async () => {
     setLoading(true);
     try { const r = await api.get('/users'); setUsers(r.data); }
-    catch { toast.error('Error al cargar usuarios'); } finally { setLoading(false); }
+    catch (e) { handleApiError(e, 'No pudimos cargar los usuarios. Intenta de nuevo.'); } finally { setLoading(false); }
   };
   useEffect(() => { cargar(); }, []);
 
@@ -30,7 +31,7 @@ export default function AdminUsersPage() {
       await api.patch(`/users/${id}/role`, { role: nuevoRol });
       toast.success('Rol actualizado');
       cargar();
-    } catch { toast.error('Error al cambiar rol'); }
+    } catch (e) { handleApiError(e, 'No pudimos cambiar el rol. Intenta de nuevo.'); }
   };
 
   const filtrados = users.filter(u =>
@@ -59,7 +60,7 @@ export default function AdminUsersPage() {
             {Object.entries(ROLES).map(([rol,cfg])=>{
               const count = users.filter(u=>u.role===rol).length;
               return (
-                <div key={rol} className="bg-white/10 rounded-xl px-4 py-3 text-center">
+                <div key={rol} className="bg-[var(--bone-2)]/10 rounded-xl px-4 py-3 text-center">
                   <p className="text-xl font-black text-white">{count}</p>
                   <p className="text-white/50 text-xs">{cfg.label}s</p>
                 </div>
@@ -74,7 +75,7 @@ export default function AdminUsersPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"/>
             <input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar usuario..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--bone-2)] border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
           </div>
           <span className="text-sm text-[var(--text-muted)]">{filtrados.length} resultados</span>
         </div>
@@ -85,7 +86,7 @@ export default function AdminUsersPage() {
           <div className="text-center py-16"><Users className="w-12 h-12 text-[var(--border-hover)] mx-auto mb-4"/><p className="text-[var(--text-secondary)] font-medium">Sin usuarios</p></div>
         ) : (
           <motion.div variants={stagger} initial="hidden" animate="visible">
-            <div className="bg-white border border-[var(--border)] rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-[var(--bone-2)] border border-[var(--border)] rounded-xl overflow-hidden shadow-sm">
               {filtrados.map((u,i)=>{
                 const rolCfg = ROLES[u.role] ?? ROLES.buyer;
                 const RolIcon = rolCfg.icon;
@@ -103,7 +104,7 @@ export default function AdminUsersPage() {
                       <RolIcon className="w-3 h-3"/>{rolCfg.label}
                     </span>
                     <select value={u.role} onChange={e=>cambiarRol(u.id??u._id, e.target.value)}
-                      className="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-white outline-none focus:border-[var(--accent)] transition-colors cursor-pointer shrink-0">
+                      className="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] transition-colors cursor-pointer shrink-0">
                       {Object.entries(ROLES).map(([r,{label}])=><option key={r} value={r}>{label}</option>)}
                     </select>
                   </motion.div>

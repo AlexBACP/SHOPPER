@@ -11,10 +11,12 @@
  */
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import {
+  Loader2, AlertCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -28,7 +30,7 @@ const MENSAJES_ERROR: Record<string, string> = {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
-export default function PaginaCallbackOAuth(): React.ReactElement {
+function ContenidoCallbackOAuth(): React.ReactElement {
   const router       = useRouter();
   const params       = useSearchParams();
   const setAuth      = useAuthStore((s) => s.setAuth);
@@ -94,8 +96,8 @@ export default function PaginaCallbackOAuth(): React.ReactElement {
     <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4">
       {/* Blobs decorativos */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-amber-500/[0.05] blur-[130px] animar-float-suave" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-amber-600/[0.04] blur-[110px] animar-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-[var(--primary)]/[0.05] blur-[130px] animar-float-suave" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-[var(--primary)]/[0.04] blur-[110px] animar-float" style={{ animationDelay: '2s' }} />
       </div>
 
       <motion.div
@@ -106,14 +108,14 @@ export default function PaginaCallbackOAuth(): React.ReactElement {
       >
         {estado === 'cargando' ? (
           <>
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-hover)] flex items-center justify-center shadow-[0_0_32px_rgba(245,158,11,0.35)]">
-              <Loader2 className="w-8 h-8 text-[#09090b] animate-spin" aria-hidden="true" />
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-hover)] flex items-center justify-center shadow-[0_0_32px_rgba(199,90,43,0.35)]">
+              <Loader2 className="w-8 h-8 text-[var(--bone-2)] animate-spin" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-[var(--text-primary)] mb-1">
+              <h1 className="text-xl font-bold text-[var(--ink)] mb-1">
                 Iniciando sesión
               </h1>
-              <p className="text-sm text-[var(--text-muted)]">
+              <p className="text-sm text-[var(--ink-soft)]">
                 Verificando tu cuenta…
               </p>
             </div>
@@ -132,11 +134,11 @@ export default function PaginaCallbackOAuth(): React.ReactElement {
               <AlertCircle className="w-8 h-8 text-[var(--danger)]" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-[var(--text-primary)] mb-1">
+              <h1 className="text-xl font-bold text-[var(--ink)] mb-1">
                 Error de autenticación
               </h1>
-              <p className="text-sm text-[var(--text-muted)]">{mensajeError}</p>
-              <p className="text-xs text-[var(--text-muted)] mt-2">
+              <p className="text-sm text-[var(--ink-soft)]">{mensajeError}</p>
+              <p className="text-xs text-[var(--ink-soft)] mt-2">
                 Redirigiendo al inicio de sesión…
               </p>
             </div>
@@ -144,5 +146,13 @@ export default function PaginaCallbackOAuth(): React.ReactElement {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function PaginaCallbackOAuth(): React.ReactElement {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)]" />}>
+      <ContenidoCallbackOAuth />
+    </Suspense>
   );
 }

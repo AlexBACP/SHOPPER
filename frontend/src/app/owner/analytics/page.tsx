@@ -2,14 +2,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  TrendingUp, ArrowLeft, Package, ShoppingBag, Store,
-  RefreshCw, DollarSign, Users, Zap, ArrowUpRight,
-  ArrowDownRight, Calendar, BarChart2, Clock,
+  TrendingUp, ArrowLeft, Package, ShoppingBag, Store, RefreshCw, DollarSign, Zap, ArrowUpRight, ArrowDownRight, Calendar, BarChart2,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import api from '@/lib/api';
 
@@ -18,7 +15,7 @@ const fmtS  = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` 
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.07 } } };
 const item    = { hidden: { opacity: 0, y: 14 }, visible: { opacity: 1, y: 0, transition: { ease: [0.16, 1, 0.3, 1] as [number, number, number, number], duration: 0.45 } } };
 
-const CHART_COLORS = ['#FF9900', '#007185', '#22c55e', '#8b5cf6', '#ef4444', '#0ea5e9'];
+const CHART_COLORS = ['#c75a2b', '#007185', '#22c55e', '#8b5cf6', '#ef4444', '#0ea5e9'];
 
 const ESTADOS_LABEL: Record<string, string> = {
   pending: 'Pendiente', confirmed: 'Confirmado', processing: 'Preparando',
@@ -31,7 +28,7 @@ const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'O
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-[var(--border)] rounded-xl p-3 shadow-lg text-xs">
+    <div className="bg-[var(--bone-2)] border border-[var(--border)] rounded-xl p-3 shadow-lg text-xs">
       <p className="font-bold text-[var(--text-primary)] mb-2">{label}</p>
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
@@ -53,7 +50,7 @@ function KPICard({ icon: Icon, label, value, sub, color, trend, trendVal }: {
 }) {
   return (
     <motion.div variants={item} whileHover={{ y: -3 }}
-      className="bg-white border border-[var(--border)] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
+      className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-start justify-between mb-3">
         <div className={`w-11 h-11 ${color} rounded-xl flex items-center justify-center`}>
           <Icon className="w-5 h-5" />
@@ -104,7 +101,7 @@ export default function AnalyticsPage() {
 
   // ── Métricas calculadas ──────────────────────────────
   const validos      = pedidos.filter(p => p.status !== 'cancelled' && p.status !== 'refunded');
-  const totalIngreso = validos.reduce((s, p) => s + (p.total ?? 0), 0);
+  const totalIngreso = validos.reduce((s, p) => s + Number(p.total ?? 0), 0);
   const pendientes   = pedidos.filter(p => p.status === 'pending').length;
   const activos      = prods.filter(p => p.is_active).length;
   const stockBajo    = prods.filter(p => p.is_active && p.stock <= 5).length;
@@ -121,7 +118,7 @@ export default function AnalyticsPage() {
     validos.forEach(p => {
       const d   = new Date(p.created_at);
       const key = `${MESES[d.getMonth()]} ${d.getFullYear()}`;
-      if (mapa[key]) { mapa[key].ingresos += p.total ?? 0; mapa[key].pedidos += 1; }
+      if (mapa[key]) { mapa[key].ingresos += Number(p.total ?? 0); mapa[key].pedidos += 1; }
     });
     return Object.entries(mapa).map(([mes, v]) => ({ mes, ...v }));
   }, [pedidos]);
@@ -165,7 +162,7 @@ export default function AnalyticsPage() {
             <Link href="/owner" className="text-white/60 hover:text-white transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-400/30">
+            <div className="w-10 h-10 bg-[var(--primary)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--shadow-sm)]">
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -196,11 +193,11 @@ export default function AnalyticsPage() {
               <KPICard icon={DollarSign}  label="Ingresos totales" value={fmtS(totalIngreso)} sub={`${validos.length} pedidos válidos`}       color="bg-orange-100 text-orange-600" trend="up"      trendVal="+12%" />
               <KPICard icon={ShoppingBag} label="Total pedidos"    value={String(pedidos.length)} sub={`${pendientes} pendientes`}             color="bg-blue-100 text-blue-600"   trend="up"      trendVal="+5%"  />
               <KPICard icon={BarChart2}   label="Ticket promedio"  value={fmtS(ticket)}       sub="Por pedido"                                  color="bg-purple-100 text-purple-600" trend="neutral" trendVal="~"    />
-              <KPICard icon={Package}     label="Productos activos" value={String(activos)}   sub={stockBajo > 0 ? `⚠ ${stockBajo} con stock bajo` : 'Inventario OK'} color="bg-green-100 text-green-600" trend={stockBajo > 0 ? 'down' : 'up'} trendVal={stockBajo > 0 ? `${stockBajo} bajos` : 'OK'} />
+              <KPICard icon={Package}     label="Productos activos" value={String(activos)}   sub={stockBajo > 0 ? ` ${stockBajo} con stock bajo` : 'Inventario OK'} color="bg-green-100 text-green-600" trend={stockBajo > 0 ? 'down' : 'up'} trendVal={stockBajo > 0 ? `${stockBajo} bajos` : 'OK'} />
             </div>
 
             {/* Gráfica ingresos por mes */}
-            <motion.div variants={item} className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+            <motion.div variants={item} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <h2 className="font-bold text-[var(--text-primary)] text-base">Ingresos por mes</h2>
@@ -216,15 +213,15 @@ export default function AnalyticsPage() {
                   <AreaChart data={ventasPorMes} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="gradIngresos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#FF9900" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#FF9900" stopOpacity={0.02} />
+                        <stop offset="5%"  stopColor="#c75a2b" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#c75a2b" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                     <YAxis tickFormatter={v => fmtS(v)} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="#FF9900" strokeWidth={2.5} fill="url(#gradIngresos)" dot={{ r: 4, fill: '#FF9900', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#FF9900' }} />
+                    <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="#c75a2b" strokeWidth={2.5} fill="url(#gradIngresos)" dot={{ r: 4, fill: '#c75a2b', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#c75a2b' }} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
@@ -242,7 +239,7 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* Pedidos por día */}
-              <motion.div variants={item} className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+              <motion.div variants={item} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h2 className="font-bold text-[var(--text-primary)] text-base">Pedidos por día</h2>
@@ -266,14 +263,14 @@ export default function AnalyticsPage() {
                       interval={periodo === '90d' ? 6 : periodo === '30d' ? 3 : 0} />
                     <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="cantidad" name="Pedidos" fill="#FF9900" radius={[4, 4, 0, 0]}
+                    <Bar dataKey="cantidad" name="Pedidos" fill="#c75a2b" radius={[4, 4, 0, 0]}
                       maxBarSize={32} />
                   </BarChart>
                 </ResponsiveContainer>
               </motion.div>
 
               {/* Pedidos por estado — pie chart */}
-              <motion.div variants={item} className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+              <motion.div variants={item} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
                 <h2 className="font-bold text-[var(--text-primary)] text-base mb-1">Distribución por estado</h2>
                 <p className="text-xs text-[var(--text-muted)] mb-4">Total: {pedidos.length} pedidos</p>
                 {porEstado.length > 0 ? (
@@ -309,12 +306,12 @@ export default function AnalyticsPage() {
 
             {/* Top productos */}
             {topProductos.length > 0 && (
-              <motion.div variants={item} className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+              <motion.div variants={item} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
                 <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-between">
                   <h2 className="font-bold text-[var(--text-primary)] text-base flex items-center gap-2">
                     <Zap className="w-4 h-4 text-[var(--accent)]" /> Top productos por valor
                   </h2>
-                  <Link href="/owner/products" className="text-xs text-[var(--blue)] hover:underline font-medium">Ver todos</Link>
+                  <Link href="/owner/products" className="text-xs text-[var(--primary)] hover:underline font-medium">Ver todos</Link>
                 </div>
                 {topProductos.map((p, i) => (
                   <div key={p._id} className={`flex items-center gap-4 px-5 py-3.5 hover:bg-[var(--surface-2)] transition-colors ${i < topProductos.length - 1 ? 'border-b border-[var(--border)]' : ''}`}>
@@ -339,7 +336,7 @@ export default function AnalyticsPage() {
                     <div className="w-16 h-6 hidden sm:block">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={[{ v: p.price }, { v: p.price * 0.8 }, { v: p.price * 1.1 }]}>
-                          <Bar dataKey="v" fill="#FF9900" radius={[2, 2, 0, 0]} maxBarSize={8} />
+                          <Bar dataKey="v" fill="#c75a2b" radius={[2, 2, 0, 0]} maxBarSize={8} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -349,13 +346,13 @@ export default function AnalyticsPage() {
             )}
 
             {/* Resumen tiendas */}
-            <motion.div variants={item} className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+            <motion.div variants={item} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
               <h2 className="font-bold text-[var(--text-primary)] text-base mb-4 flex items-center gap-2">
                 <Store className="w-4 h-4 text-[var(--accent)]" /> Mis tiendas
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {tiendas.map(t => (
-                  <Link key={t.id} href={`/store/${t.slug}`} target="_blank"
+                  <Link key={t.id} href={`/store/${t.slug}`} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2.5 p-3 bg-[var(--surface-2)] rounded-xl border border-[var(--border)] hover:border-[var(--accent-border)] hover:shadow-sm transition-all group">
                     <div className="w-9 h-9 bg-[var(--accent)] rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0">
                       {t.name[0]?.toUpperCase()}

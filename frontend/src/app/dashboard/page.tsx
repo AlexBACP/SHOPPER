@@ -19,6 +19,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
 import { useWishlistStore } from '@/store/wishlist.store';
 import api from '@/lib/api';
+import OrderStatusTracker from '@/components/orders/OrderStatusTracker';
 
 // Postgres devuelve los numeric/decimal como string → siempre coercer a número
 const toNum = (v: unknown): number => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
@@ -52,14 +53,14 @@ function StatCard({ icon: Icon, label, value, sub, color, href }: {
 }) {
   const Inner = (
     <motion.div variants={anim} whileHover={{ y: -3 }}
-      className={`bg-white border border-[var(--border)] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all ${href ? 'cursor-pointer hover:border-[var(--accent-border)]' : ''}`}>
+      className={`bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all ${href ? 'cursor-pointer hover:border-[var(--accent-border)]' : ''}`}>
       <div className={`w-11 h-11 ${color} rounded-xl flex items-center justify-center mb-3`}>
         <Icon className="w-5 h-5" />
       </div>
       <div className="text-2xl font-black text-[var(--text-primary)] mb-0.5">{value}</div>
       <div className="text-sm font-semibold text-[var(--text-secondary)]">{label}</div>
       {sub && <div className="text-xs text-[var(--text-muted)] mt-0.5">{sub}</div>}
-      {href && <div className="flex items-center gap-1 mt-2 text-xs text-[var(--blue)] font-medium">Ver <ArrowRight className="w-3 h-3" /></div>}
+      {href && <div className="flex items-center gap-1 mt-2 text-xs text-[var(--primary)] font-medium">Ver <ArrowRight className="w-3 h-3" /></div>}
     </motion.div>
   );
   return href ? <Link href={href}>{Inner}</Link> : Inner;
@@ -114,12 +115,12 @@ function DashboardComprador({ nombre }: { nombre: string }) {
         <div className="pointer-events-none absolute -bottom-20 left-1/4 w-52 h-52 rounded-full bg-indigo-500/10 blur-3xl" />
 
         <div className="relative flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-orange-900/30 shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--primary)] flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-[var(--shadow-sm)] shrink-0">
             {nombre[0]?.toUpperCase()}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold bg-white/10 text-white border border-white/15">
+              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold bg-[var(--bone-2)]/10 text-white border border-white/15">
                 <Shield className="w-3 h-3" /> Comprador
               </span>
               <span className="inline-flex items-center gap-1.5 text-xs text-green-400 font-medium">
@@ -146,22 +147,22 @@ function DashboardComprador({ nombre }: { nombre: string }) {
 
       {/* Gráfico de gasto si hay datos */}
       {gastosPorMes.some(g => g.total > 0) && (
-        <motion.div variants={anim} className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+        <motion.div variants={anim} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold text-[var(--text-primary)] mb-1">Mis compras por mes</h2>
           <p className="text-xs text-[var(--text-muted)] mb-5">Últimos 6 meses</p>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={gastosPorMes} margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradCompras" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#FF9900" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#FF9900" stopOpacity={0.02} />
+                  <stop offset="5%"  stopColor="#c75a2b" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#c75a2b" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={v => fmtS(v)} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
               <Tooltip formatter={(v) => [fmt(v as number), 'Gasto']} contentStyle={{ borderRadius: 12, border: '1px solid var(--border)', fontSize: 12 }} />
-              <Area type="monotone" dataKey="total" stroke="#FF9900" strokeWidth={2.5} fill="url(#gradCompras)" dot={{ r: 4, fill: '#FF9900', strokeWidth: 0 }} />
+              <Area type="monotone" dataKey="total" stroke="#c75a2b" strokeWidth={2.5} fill="url(#gradCompras)" dot={{ r: 4, fill: '#c75a2b', strokeWidth: 0 }} />
             </AreaChart>
           </ResponsiveContainer>
         </motion.div>
@@ -174,11 +175,11 @@ function DashboardComprador({ nombre }: { nombre: string }) {
             <h2 className="font-bold text-[var(--text-primary)] flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-[var(--accent)]" /> Carrito actual
             </h2>
-            <button onClick={openCart} className="text-xs text-[var(--blue)] hover:underline flex items-center gap-1 font-medium">
+            <button onClick={openCart} className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 font-medium">
               Abrir <ArrowRight className="w-3 h-3" />
             </button>
           </div>
-          <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
             {items.slice(0, 3).map((it, i) => (
               <div key={it.productId} className={`flex items-center gap-3 px-4 py-3.5 ${i < Math.min(items.length, 3) - 1 ? 'border-b border-[var(--border)]' : ''}`}>
                 <div className="w-10 h-10 bg-[var(--surface-2)] rounded-xl overflow-hidden border border-[var(--border)] shrink-0">
@@ -196,7 +197,7 @@ function DashboardComprador({ nombre }: { nombre: string }) {
               <div className="text-sm">
                 <span className="text-[var(--text-muted)]">Total: </span>
                 <strong className="text-[var(--accent-dark)]">{fmt(total())}</strong>
-                <span className="text-xs text-[var(--text-muted)] ml-1">(+ IVA 19%)</span>
+                <span className="text-xs text-[var(--text-muted)] ml-1">(IVA incluido)</span>
               </div>
               <div className="flex gap-2">
                 <button onClick={openCart} className="text-xs px-3 py-1.5 border border-[var(--border)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-3)] transition-colors">Ver</button>
@@ -214,11 +215,11 @@ function DashboardComprador({ nombre }: { nombre: string }) {
             <h2 className="font-bold text-[var(--text-primary)] flex items-center gap-2">
               <ShoppingBag className="w-4 h-4 text-[var(--accent)]" /> Pedidos recientes
             </h2>
-            <Link href="/orders" className="text-xs text-[var(--blue)] hover:underline flex items-center gap-1 font-medium">
+            <Link href="/orders" className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 font-medium">
               Ver todos <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
-          <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
             {pedidos.slice(0, 4).map((p, i) => {
               const e  = ESTADOS[p.status] ?? ESTADOS.pending;
               return (
@@ -228,16 +229,17 @@ function DashboardComprador({ nombre }: { nombre: string }) {
                     <e.icon className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--blue)] transition-colors">
+                    <p className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-[var(--primary)] transition-colors">
                       #{p.id?.slice(-8)?.toUpperCase()}
                     </p>
                     <p className="text-xs text-[var(--text-muted)]">
                       {new Date(p.created_at).toLocaleDateString('es-CO', { day:'2-digit', month:'short' })} · {p.items?.length ?? 0} artículos
                     </p>
+                    <OrderStatusTracker status={p.status} compact className="mt-1.5 max-w-[160px]" />
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold shrink-0 hidden sm:block ${e.color}`}>{e.label}</span>
                   <span className="text-sm font-black text-[var(--text-primary)] shrink-0">{fmt(p.total)}</span>
-                  <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--blue)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all shrink-0" />
                 </Link>
               );
             })}
@@ -256,7 +258,7 @@ function DashboardComprador({ nombre }: { nombre: string }) {
             { href: '/dashboard/profile', icon: Shield, label: 'Perfil', desc: 'Mi cuenta',              color: 'bg-purple-100 text-purple-600' },
           ].map(({ href, icon: Icon, label, desc, color }) => (
             <Link key={href} href={href}
-              className="flex flex-col items-center gap-2 bg-white border border-[var(--border)] rounded-2xl p-4 hover:border-[var(--accent-border)] hover:shadow-md transition-all group text-center">
+              className="flex flex-col items-center gap-2 bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-4 hover:border-[var(--accent-border)] hover:shadow-md transition-all group text-center">
               <div className={`w-11 h-11 ${color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -384,11 +386,11 @@ function DashboardVendedor({ nombre }: { nombre: string }) {
             <h2 className="font-bold text-[var(--text-primary)] flex items-center gap-2">
               <ShoppingBag className="w-4 h-4 text-[var(--accent)]" /> Últimos pedidos
             </h2>
-            <Link href="/owner/orders" className="text-xs text-[var(--blue)] hover:underline flex items-center gap-1 font-medium">
+            <Link href="/owner/orders" className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 font-medium">
               Ver todos <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
-          <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
             {pedidos.slice(0, 5).map((p, i) => {
               const e = ESTADOS[p.status] ?? ESTADOS.pending;
               return (
@@ -413,7 +415,7 @@ function DashboardVendedor({ nombre }: { nombre: string }) {
 
       {/* Sin tiendas */}
       {!loading && tiendas.length === 0 && (
-        <motion.div variants={anim} className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-10 text-center">
+        <motion.div variants={anim} className="bg-[var(--bone-3)] border border-orange-200 rounded-2xl p-10 text-center">
           <Crown className="w-12 h-12 text-[var(--accent)] mx-auto mb-4" />
           <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">¡Crea tu primera tienda!</h3>
           <p className="text-[var(--text-muted)] mb-5 max-w-sm mx-auto text-sm">Empieza a vender en minutos. Sin comisiones iniciales.</p>
@@ -435,7 +437,7 @@ function DashboardVendedor({ nombre }: { nombre: string }) {
             { href:'/owner/analytics', icon:BarChart3,   label:'Analíticas', color:'bg-green-100 text-green-600'   },
           ].map(({ href, icon: Icon, label, color }) => (
             <Link key={href} href={href}
-              className="flex flex-col items-center gap-2 bg-white border border-[var(--border)] rounded-2xl p-4 hover:border-[var(--accent-border)] hover:shadow-md transition-all group text-center">
+              className="flex flex-col items-center gap-2 bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-4 hover:border-[var(--accent-border)] hover:shadow-md transition-all group text-center">
               <div className={`w-11 h-11 ${color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -468,7 +470,7 @@ function DashboardAdmin({ nombre, rol }: { nombre: string; rol: string }) {
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-6">
       <motion.div variants={anim} className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-2xl font-black text-white shadow-lg shrink-0">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--ink)] to-[var(--ink)] flex items-center justify-center text-2xl font-black text-white shadow-lg shrink-0">
           {nombre[0]?.toUpperCase()}
         </div>
         <div>
@@ -495,9 +497,9 @@ function DashboardAdmin({ nombre, rol }: { nombre: string; rol: string }) {
         <motion.div variants={anim}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-[var(--text-primary)]">Tiendas recientes</h2>
-            <Link href="/admin/stores" className="text-xs text-[var(--blue)] hover:underline flex items-center gap-1 font-medium">Ver todas <ArrowRight className="w-3 h-3" /></Link>
+            <Link href="/admin/stores" className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 font-medium">Ver todas <ArrowRight className="w-3 h-3" /></Link>
           </div>
-          <div className="bg-white border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm">
             {tiendas.slice(-5).reverse().map((t, i) => (
               <div key={t.id} className={`flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--surface-2)] transition-colors group ${i < 4 ? 'border-b border-[var(--border)]' : ''}`}>
                 <div className="w-9 h-9 bg-[var(--accent)] rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0">
@@ -510,7 +512,7 @@ function DashboardAdmin({ nombre, rol }: { nombre: string; rol: string }) {
                 <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${t.is_published ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
                   {t.is_published ? 'Publicada' : 'Oculta'}
                 </span>
-                <Link href={`/store/${t.slug}`} target="_blank" className="text-[var(--text-muted)] hover:text-[var(--blue)] transition-colors">
+                <Link href={`/store/${t.slug}`} target="_blank" rel="noopener noreferrer" className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors">
                   <Eye className="w-4 h-4" />
                 </Link>
               </div>
@@ -528,7 +530,7 @@ function DashboardAdmin({ nombre, rol }: { nombre: string; rol: string }) {
             { href:'/',                   icon:Eye,     label:'Ver plataforma',     desc:'Como comprador',         color:'bg-blue-100 text-blue-600'     },
           ].map(({ href, icon: Icon, label, desc, color }) => (
             <Link key={href} href={href}
-              className="flex items-center gap-3 bg-white border border-[var(--border)] rounded-2xl p-4 hover:border-[var(--accent-border)] hover:shadow-md transition-all group">
+              className="flex items-center gap-3 bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-4 hover:border-[var(--accent-border)] hover:shadow-md transition-all group">
               <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform`}><Icon className="w-5 h-5" /></div>
               <div><p className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-dark)] transition-colors">{label}</p><p className="text-xs text-[var(--text-muted)]">{desc}</p></div>
               <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--accent)] group-hover:translate-x-1 transition-all ml-auto" />

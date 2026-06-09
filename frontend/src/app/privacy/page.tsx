@@ -151,7 +151,7 @@ De preferencia (desactivables):
 No utilizamos cookies de seguimiento publicitario de terceros. Puede gestionar las cookies desde la configuración de su navegador.`,
           },
         ].map(({ icon: Icon, color, titulo, contenido }) => (
-          <div key={titulo} className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+          <div key={titulo} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center shrink-0`}>
                 <Icon className="w-5 h-5" />
@@ -163,7 +163,7 @@ No utilizamos cookies de seguimiento publicitario de terceros. Puede gestionar l
         ))}
 
         {/* Contacto DPO */}
-        <div className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+        <div className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
           <h2 className="text-base font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
             <Mail className="w-5 h-5 text-[var(--accent)]" /> Contacto — Oficial de Protección de Datos
           </h2>
@@ -177,15 +177,15 @@ No utilizamos cookies de seguimiento publicitario de terceros. Puede gestionar l
               <p className="font-semibold text-[var(--text-primary)] mb-1">Superintendencia de Industria y Comercio</p>
               <p className="text-xs">Para ejercer quejas formales ante la autoridad de control</p>
               <a href="https://www.sic.gov.co" target="_blank" rel="noopener noreferrer"
-                className="text-[var(--blue)] hover:underline text-xs mt-1 block">www.sic.gov.co</a>
+                className="text-[var(--primary)] hover:underline text-xs mt-1 block">www.sic.gov.co</a>
             </div>
           </div>
         </div>
 
         <div className="pt-4 border-t border-[var(--border)] flex flex-wrap gap-4 text-sm text-[var(--text-muted)]">
-          <Link href="/terms" className="hover:text-[var(--blue)] hover:underline transition-colors">Términos y Condiciones</Link>
+          <Link href="/terms" className="hover:text-[var(--primary)] hover:underline transition-colors">Términos y Condiciones</Link>
           <span>·</span>
-          <Link href="/" className="hover:text-[var(--blue)] hover:underline transition-colors">Inicio</Link>
+          <Link href="/" className="hover:text-[var(--primary)] hover:underline transition-colors">Inicio</Link>
         </div>
       </div>
     </div>

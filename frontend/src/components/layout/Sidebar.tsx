@@ -54,7 +54,7 @@ function getNavGroups(role: Role): NavGroup[] {
     return [
       {
         items: [
-          { label: 'Dashboard',   href: '/dashboard',      icon: LayoutDashboard },
+          { label: 'Panel',       href: '/dashboard',      icon: LayoutDashboard },
           { label: 'Mi perfil',   href: '/dashboard/profile', icon: User },
         ],
       },
@@ -74,7 +74,7 @@ function getNavGroups(role: Role): NavGroup[] {
       items: [
         { label: 'Mi cuenta',  href: '/dashboard',          icon: LayoutDashboard },
         { label: 'Mi perfil',  href: '/dashboard/profile',  icon: User },
-        { label: 'Mis órdenes', href: '/orders',            icon: ShoppingCart },
+        { label: 'Mis pedidos', href: '/orders',            icon: ShoppingCart },
       ],
     },
   ];
@@ -93,8 +93,8 @@ function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
       className={cn(
         'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all group relative',
         active
-          ? 'bg-[var(--accent)]/10 text-[var(--accent-bright)] border border-[var(--accent-border)]'
-          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 border border-transparent',
+          ? 'bg-[var(--accent-subtle)] text-[var(--primary-2)] border border-[var(--accent-border)]'
+          : 'text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--bone-3)] border border-transparent',
         collapsed && 'justify-center',
       )}
     >
@@ -105,7 +105,7 @@ function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
       )}
 
       {item.badge && !collapsed && (
-        <span className="ml-auto text-xs bg-[var(--accent)] text-[var(--text-primary)] px-1.5 py-0.5 rounded-full">
+        <span className="ml-auto text-xs bg-[var(--primary)] text-[var(--bone-2)] px-1.5 py-0.5 rounded-full">
           {item.badge}
         </span>
       )}
@@ -157,8 +157,8 @@ export default function Sidebar({ className }: SidebarProps) {
         'flex items-center h-16 border-b border-[var(--border)] shrink-0 px-4',
         collapsed ? 'justify-center' : 'gap-2.5',
       )}>
-        <div className="w-7 h-7 bg-[var(--accent)] rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
-          <ShoppingBag className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+        <div className="w-7 h-7 bg-[var(--primary)] rounded-lg flex items-center justify-center shadow-[var(--shadow-sm)] shrink-0">
+          <ShoppingBag className="w-3.5 h-3.5 text-[var(--bone-2)]" />
         </div>
         <AnimatePresence>
           {!collapsed && (
@@ -199,7 +199,7 @@ export default function Sidebar({ className }: SidebarProps) {
         <button
           onClick={() => setCollapsed((v) => !v)}
           className={cn(
-            'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-all w-full',
+            'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-[var(--ink-soft)] hover:text-[var(--ink)] hover:bg-[var(--bone-3)] transition-all w-full',
             collapsed && 'justify-center',
           )}
           title={collapsed ? 'Expandir' : 'Colapsar'}
@@ -215,7 +215,7 @@ export default function Sidebar({ className }: SidebarProps) {
           'flex items-center gap-2.5 px-3 py-2 rounded-xl',
           collapsed && 'justify-center',
         )}>
-          <div className="w-7 h-7 bg-[var(--accent)]/20 border border-[var(--accent-border)] rounded-lg flex items-center justify-center text-xs font-bold text-[var(--accent-bright)] shrink-0">
+          <div className="w-7 h-7 bg-[var(--accent-subtle)] border border-[var(--accent-border)] rounded-lg flex items-center justify-center text-xs font-bold text-[var(--primary-2)] shrink-0">
             {user.name?.[0]?.toUpperCase() ?? '?'}
           </div>
           <AnimatePresence>

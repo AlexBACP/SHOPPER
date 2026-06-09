@@ -1,1 +1,0 @@
-MétodoRutaRol requeridoPOST/storesAdminGET/storesAutenticadoGET/stores/myOwnerGET/stores/:idAutenticadoPATCH/stores/:idOwner / AdminDELETE/stores/:idOwner / AdminPOST/stores/:storeId/productsOwner / AdminGET/stores/:storeId/productsPúblicoGET/stores/:storeId/products/:idPúblicoPATCH/stores/:storeId/products/:idOwner / AdminDELETE/stores/:storeId/products/:idOwner / Admin

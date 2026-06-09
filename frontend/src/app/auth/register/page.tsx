@@ -6,22 +6,28 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { User, Mail, ArrowRight, Eye, EyeOff, ShoppingCart, Store, Crown, Loader2, CheckCircle } from 'lucide-react';
+import {
+  User, Mail, ArrowRight, Eye, EyeOff, ShoppingCart, Store, Loader2, CheckCircle, AlertCircle,
+} from 'lucide-react';
 import api from '@/lib/api';
+import { handleApiError } from '@/lib/errors';
 import Link from 'next/link';
+import { LogoIcon } from '@/components/ui/LogoIcon';
 import FloatingProductsBackground from '@/components/ui/FloatingProductsBackground';
 
 const schema = z.object({
-  name:     z.string().min(2, 'Mínimo 2 caracteres'),
-  email:    z.string().email('Correo inválido'),
-  password: z.string().min(6, 'Mínimo 6 caracteres'),
+  name:     z.string().trim().min(2, 'Mínimo 2 caracteres').max(80, 'Máximo 80 caracteres'),
+  email:    z.string().trim().toLowerCase().email('Correo inválido'),
+  password: z.string()
+    .min(8, 'Mínimo 8 caracteres')
+    .regex(/[A-Z]/, 'Incluye al menos una mayúscula')
+    .regex(/[0-9]/, 'Incluye al menos un número'),
   role:     z.enum(['buyer', 'owner']),
 });
 type FormData = z.infer<typeof schema>;
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-/* Logos oficiales de marca (SVG reales, no emojis) */
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" aria-hidden="true">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -54,171 +60,252 @@ export default function RegisterPage() {
       toast.success('¡Cuenta creada! Inicia sesión.');
       setTimeout(() => window.location.href = '/auth/login', 2000);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al registrar');
+      handleApiError(err, 'No pudimos crear tu cuenta. Intenta de nuevo en un momento.');
     }
   };
 
-  if (done) return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
-      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="w-10 h-10 text-green-600" />
-        </div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">¡Cuenta creada!</h2>
-        <p className="text-[var(--text-muted)]">Redirigiendo al login...</p>
-      </motion.div>
-    </div>
-  );
+  if (done) {
+    return (
+      <div className="eda-page">
+        <aside className="eda-cover">
+          <FloatingProductsBackground />
+          <div className="eda-cover-mast">
+            <Link href="/" className="eda-cover-logo">
+              <span className="badge"><LogoIcon /></span>
+              <span className="nm">Shopper</span>
+            </Link>
+          </div>
+          <div className="eda-cover-body">
+            <h2 className="eda-cover-h">
+              <span className="row">Tu cuenta</span>
+              <span className="row indent"><span className="it">está lista.</span></span>
+            </h2>
+          </div>
+          <div className="eda-cover-foot"><span>© 2026 Shopper Colombia</span></div>
+        </aside>
+        <main className="eda-pane">
+          <motion.div
+            className="eda-success eda-form-wrap"
+            initial={{ scale: 0.92, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+          >
+            <div className="eda-success-icon">
+              <CheckCircle className="w-10 h-10" />
+            </div>
+            <h2>¡Cuenta <span className="it">creada</span>!</h2>
+            <p>Redirigiendo al inicio de sesión…</p>
+            <Loader2 className="w-5 h-5 animate-spin mx-auto" style={{ color: 'var(--primary)' }} />
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] flex">
-      {/* Panel izquierdo */}
-      <div className="hidden lg:flex flex-col justify-between w-[45%] bg-[var(--nav-bg)] p-12 relative overflow-hidden">
+    <div className="eda-page">
+      {/* Panel izquierdo con productos flotantes */}
+      <aside className="eda-cover">
         <FloatingProductsBackground />
-        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[var(--nav-bg)] to-transparent pointer-events-none" />
+        <div className="eda-cover-mast">
+          <Link href="/" className="eda-cover-logo">
+            <span className="badge"><LogoIcon /></span>
+            <span className="nm">Shopper</span>
+          </Link>
+        </div>
 
-        <Link href="/" className="flex items-center gap-2.5 relative z-10">
-          <div className="w-9 h-9 bg-[var(--accent)] rounded-lg flex items-center justify-center">
-            <Crown className="w-5 h-5 text-white" strokeWidth={2.5} />
-          </div>
-          <span className="text-xl font-bold text-white">Shopper</span>
-        </Link>
-
-        <div className="relative z-10">
-          <p className="text-4xl font-black text-white leading-tight mb-4">
-            Únete a miles de<br />
-            {role === 'owner'
-              ? <><span className="text-[var(--accent)]">vendedores</span><br />exitosos.</>
-              : <><span className="text-[var(--accent)]">compradores</span><br />satisfechos.</>
-            }
-          </p>
-          <p className="text-white/50 text-base">
+        <div className="eda-cover-body">
+          <h2 className="eda-cover-h">
+            <span className="row">Únete a miles de</span>
+            <span className="row indent">
+              <span className="it">
+                {role === 'owner' ? 'vendedores' : 'compradores'}
+              </span>
+            </span>
+            <span className="row">{role === 'owner' ? 'exitosos.' : 'satisfechos.'}</span>
+          </h2>
+          <p className="eda-cover-lead">
             {role === 'owner'
               ? 'Abre tu tienda gratis y llega a miles de clientes en toda Colombia.'
               : 'Descubre productos únicos de las mejores tiendas independientes del país.'}
           </p>
 
-          <div className="mt-8 flex flex-col gap-3">
+          <ul className="eda-cover-list">
             {(role === 'owner'
-              ? ['Sin comisiones iniciales', 'Panel de control completo', 'Soporte dedicado']
-              : ['Pagos 100% seguros', 'Envíos a todo Colombia', 'Compra sin complicaciones']
-            ).map(t => (
-              <div key={t} className="flex items-center gap-3 text-white/60 text-sm">
-                <CheckCircle className="w-4 h-4 text-[var(--accent)] shrink-0" />
-                {t}
-              </div>
+              ? [
+                  { t: 'Sin comisiones iniciales',  d: 'Primer mes 0% de plataforma' },
+                  { t: 'Panel de control completo', d: 'Pedidos, inventario, métricas' },
+                  { t: 'Soporte dedicado',           d: 'Atendemos en menos de 24h' },
+                ]
+              : [
+                  { t: 'Pagos 100% seguros',     d: 'Cifrado SSL 256-bit con Wompi' },
+                  { t: 'Envíos a todo Colombia', d: 'Cobertura nacional verificada' },
+                  { t: 'Compra sin enredos',      d: 'Un solo carrito para todas las tiendas' },
+                ]
+            ).map((it, i) => (
+              <li className="eda-cover-item" key={it.t}>
+                <span className="n">{String(i + 1).padStart(2, '0')}</span>
+                <div>
+                  <div className="t">{it.t}</div>
+                  <div className="d">{it.d}</div>
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
 
-        <p className="text-white/20 text-xs relative z-10">© 2025 Shopper Colombia</p>
-      </div>
+        <div className="eda-cover-foot">
+          <span>© 2026 Shopper Colombia</span>
+          <Link href="/" style={{ color: 'inherit' }}>shopper.co</Link>
+        </div>
+      </aside>
 
       {/* Formulario */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12">
-        <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
-          <div className="w-9 h-9 bg-[var(--accent)] rounded-lg flex items-center justify-center">
-            <Crown className="w-5 h-5 text-white" strokeWidth={2.5} />
-          </div>
-          <span className="text-xl font-bold text-[var(--text-primary)]">Shopper</span>
-        </Link>
+      <main className="eda-pane">
+        <div className="eda-pane-top">
+          <Link href="/" className="eda-pane-logo">
+            <span className="badge"><LogoIcon /></span>
+            <span className="nm">Shopper</span>
+          </Link>
+        </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-[400px]">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-1">Crear cuenta</h1>
-          <p className="text-sm text-[var(--text-muted)] mb-6">Gratis. Sin tarjeta requerida.</p>
+        <motion.div
+          className="eda-form-wrap"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <header className="eda-form-h">
+            <h1>Empieza <span className="it">hoy mismo</span></h1>
+            <p>Gratis. Sin tarjeta requerida. Listo en menos de un minuto.</p>
+          </header>
 
           {/* Selector rol */}
-          <div className="flex gap-2 p-1 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg mb-6">
+          <div className="eda-roles" role="radiogroup" aria-label="Tipo de cuenta">
             {[
-              { val: 'buyer', icon: ShoppingCart, label: 'Comprador' },
-              { val: 'owner', icon: Store,         label: 'Vendedor'  },
-            ].map(r => (
-              <button key={r.val} type="button" onClick={() => setValue('role', r.val as 'buyer' | 'owner')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${
-                  role === r.val ? 'bg-white text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                }`}>
-                <r.icon className="w-3.5 h-3.5" />
-                {r.label}
-              </button>
-            ))}
+              { val: 'buyer' as const, Icon: ShoppingCart, label: 'Comprador' },
+              { val: 'owner' as const, Icon: Store,         label: 'Vendedor'  },
+            ].map(r => {
+              const Ic = r.Icon;
+              return (
+                <button
+                  key={r.val}
+                  type="button"
+                  className="eda-role"
+                  role="radio"
+                  aria-checked={role === r.val}
+                  aria-pressed={role === r.val}
+                  onClick={() => setValue('role', r.val)}
+                >
+                  <Ic className="w-4 h-4" />
+                  {r.label}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Social */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          {/* OAuth */}
+          <div className="eda-oauth">
             {[
               { label: 'Google',   href: `${BACKEND}/auth/google`,   icon: <GoogleIcon /> },
               { label: 'Facebook', href: `${BACKEND}/auth/facebook`, icon: <FacebookIcon /> },
-            ].map((p, i) => (
-              <motion.a key={p.label} href={p.href}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 + i * 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                className="group relative flex items-center justify-center gap-2.5 py-3 border border-[var(--border)] rounded-xl bg-white overflow-hidden hover:border-[var(--text-muted)] hover:shadow-md transition-all">
-                <span className="relative z-10 transition-transform duration-300 group-hover:scale-110">{p.icon}</span>
-                <span className="relative z-10 text-[var(--text-secondary)] text-sm font-semibold">{p.label}</span>
-                {/* Shimmer al hover */}
-                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-black/[0.06] to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              </motion.a>
+            ].map(p => (
+              <a key={p.label} href={p.href} className="eda-oauth-btn">
+                {p.icon}<span>{p.label}</span>
+              </a>
             ))}
           </div>
 
-          <div className="relative flex items-center mb-5">
-            <div className="flex-1 h-px bg-[var(--border)]" />
-            <span className="px-3 text-xs text-[var(--text-muted)] bg-[var(--bg)]">o con tu email</span>
-            <div className="flex-1 h-px bg-[var(--border)]" />
-          </div>
+          <div className="eda-divider"><span>o con tu email</span></div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Nombre completo</label>
-              <div className="relative">
-                <input type="text" placeholder="Tu nombre" {...register('name')}
-                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all" />
-                <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
+            <div className="eda-field">
+              <label className="eda-field-label" htmlFor="name">Nombre completo</label>
+              <div className="eda-input-wrap">
+                <input
+                  id="name"
+                  type="text"
+                  placeholder="Tu nombre"
+                  autoComplete="name"
+                  className="eda-input"
+                  {...register('name')}
+                />
+                <User className="w-4 h-4 eda-input-icon" aria-hidden />
               </div>
-              {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
+              {errors.name && (
+                <span className="eda-field-err">
+                  <AlertCircle className="w-3.5 h-3.5" /> {errors.name.message}
+                </span>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Correo electrónico</label>
-              <div className="relative">
-                <input type="email" placeholder="tu@email.com" {...register('email')}
-                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all" />
-                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+            <div className="eda-field">
+              <label className="eda-field-label" htmlFor="email">Correo electrónico</label>
+              <div className="eda-input-wrap">
+                <input
+                  id="email"
+                  type="email"
+                  inputMode="email"
+                  placeholder="tu@email.com"
+                  autoComplete="email"
+                  className="eda-input"
+                  {...register('email')}
+                />
+                <Mail className="w-4 h-4 eda-input-icon" aria-hidden />
               </div>
-              {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+              {errors.email && (
+                <span className="eda-field-err">
+                  <AlertCircle className="w-3.5 h-3.5" /> {errors.email.message}
+                </span>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Contraseña</label>
-              <div className="relative">
-                <input type={showPassword ? 'text' : 'password'} placeholder="Mínimo 6 caracteres" {...register('password')}
-                  className="w-full pl-4 pr-10 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all" />
-                <button type="button" onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
+            <div className="eda-field">
+              <label className="eda-field-label" htmlFor="password">Contraseña</label>
+              <div className="eda-input-wrap">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="8+ caracteres, 1 mayúscula y 1 número"
+                  autoComplete="new-password"
+                  className="eda-input"
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  className="eda-input-toggle"
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
+              {errors.password && (
+                <span className="eda-field-err">
+                  <AlertCircle className="w-3.5 h-3.5" /> {errors.password.message}
+                </span>
+              )}
             </div>
 
-            <motion.button type="submit" disabled={isSubmitting} whileTap={{ scale: 0.98 }}
-              className="w-full flex items-center justify-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold py-3 rounded-lg text-sm transition-all hover:shadow-md disabled:opacity-60">
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Crear cuenta gratis <ArrowRight className="w-4 h-4" /></>}
-            </motion.button>
+            <button type="submit" disabled={isSubmitting} className="eda-cta alt">
+              {isSubmitting
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Creando…</>
+                : <>Crear cuenta gratis <ArrowRight className="w-4 h-4" /></>}
+            </button>
           </form>
 
-          <p className="mt-5 text-center text-sm text-[var(--text-muted)]">
-            ¿Ya tienes cuenta?{' '}
-            <Link href="/auth/login" className="text-[var(--blue)] font-medium hover:underline">Iniciar sesión</Link>
+          <p className="eda-foot">
+            ¿Ya tienes cuenta? <Link href="/auth/login">Iniciar sesión</Link>
           </p>
-          <p className="mt-3 text-center text-xs text-[var(--text-muted)]">
-            Al registrarte aceptas nuestros <Link href="/terms" className="underline">Términos</Link> y <Link href="/privacy" className="underline">Privacidad</Link>
+          <p className="eda-foot tiny">
+            Al registrarte aceptas nuestros{' '}
+            <Link href="/terms" style={{ textDecoration: 'underline' }}>Términos</Link>
+            {' '}y{' '}
+            <Link href="/privacy" style={{ textDecoration: 'underline' }}>Privacidad</Link>.
           </p>
         </motion.div>
-      </div>
+      </main>
     </div>
   );
 }

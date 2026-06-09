@@ -31,7 +31,7 @@ interface NotificacionesState {
 
 export const useNotificacionesStore = create<NotificacionesState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       notificaciones: [],
       sinLeer:        0,
 

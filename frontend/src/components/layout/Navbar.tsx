@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ShoppingBag, ShoppingCart, Store, Shield, Package,
+  ShoppingBag, Store, Shield, Package,
   LogOut, User, ChevronDown, Menu, X, LayoutDashboard,
   Users, BarChart3, Sparkles, Search, Heart, Loader2,
 } from 'lucide-react';
@@ -13,6 +13,7 @@ import { useAuthStore }      from '@/store/auth.store';
 import { useCartStore }      from '@/store/cart.store';
 import { useWishlistStore }  from '@/store/wishlist.store';
 import { useClickOutside }   from '@/hooks/useClickOutside';
+import { useHydrated }       from '@/hooks/useHydrated';
 import { LogoIcon }          from '@/components/ui/LogoIcon';
 import api from '@/lib/api';
 
@@ -30,6 +31,15 @@ type Sugerencia = {
 
 const fmtCOP = (n: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(n) || 0);
+
+// Cinta de confianza (marquee) sobre el header
+const TRUST = [
+  'Envío gratis en pedidos sobre $150.000',
+  'Pagos 100% seguros · SSL 256-bit',
+  '+1.200 tiendas verificadas en Colombia',
+  'Acepta PSE · Nequi · Daviplata · Tarjetas',
+  'Satisfacción garantizada o te devolvemos tu dinero',
+];
 
 // ── Helpers (fuera del componente para evitar recreación) ─────────────
 function obtenerEnlaces(rol: Rol) {
@@ -57,18 +67,32 @@ function obtenerEnlaces(rol: Rol) {
 }
 
 const ROL_INSIGNIA: Record<Rol, { etiqueta: string; clase: string }> = {
-  super_admin: { etiqueta: 'Super Admin', clase: 'text-orange-600 bg-orange-50 border-orange-200' },
-  admin:       { etiqueta: 'Admin',       clase: 'text-blue-600  bg-blue-50   border-blue-200'   },
-  owner:       { etiqueta: 'Vendedor',    clase: 'text-teal-600  bg-teal-50   border-teal-200'   },
-  buyer:       { etiqueta: 'Comprador',   clase: 'text-green-600 bg-green-50  border-green-200'  },
+  super_admin: { etiqueta: 'Super Admin', clase: 'text-orange-700 bg-orange-50 border-orange-200' },
+  admin:       { etiqueta: 'Admin',       clase: 'text-blue-700  bg-blue-50   border-blue-200'   },
+  owner:       { etiqueta: 'Vendedor',    clase: 'text-[var(--selva)] bg-[var(--selva-soft)] border-[var(--selva)]/30' },
+  buyer:       { etiqueta: 'Comprador',   clase: 'text-[var(--primary-2)] bg-[var(--accent-subtle)] border-[var(--accent-border)]' },
 };
 
 const NAV_PUBLICO = [
-  { href: '/#tiendas',       label: 'Tiendas'       },
-  { href: '/#como-funciona', label: 'Cómo funciona' },
-  { href: '/search',         label: 'Novedades'     },
-  { href: '/auth/register',  label: 'Vender'        },
+  { href: '/#tiendas',       label: 'Tiendas'    },
+  { href: '/#categorias',    label: 'Categorías' },
+  { href: '/#productos',     label: 'Novedades'  },
+  { href: '/#vender',        label: 'Vender'     },
 ] as const;
+
+// ── Cinta de confianza ────────────────────────────────────────────────
+function Marquee() {
+  const items = [...TRUST, ...TRUST];
+  return (
+    <div className="marquee">
+      <div className="marquee-track">
+        {items.map((t, i) => (
+          <span className="marquee-item" key={i}><span className="dot" />{t}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── Subcomponente: menú desplegable de usuario ────────────────────────
 function MenuUsuario({ alCerrar }: { alCerrar: () => void }) {
@@ -96,16 +120,16 @@ function MenuUsuario({ alCerrar }: { alCerrar: () => void }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.97 }}
       transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-      className="absolute right-0 top-full mt-2 w-64 bg-white border border-[var(--border)] rounded-lg shadow-[0_8px_32px_rgba(15,17,17,0.18)] overflow-hidden z-50"
+      className="absolute right-0 top-full mt-2 w-64 bg-[var(--bone-2)] border border-[var(--line)] rounded-[var(--r-md)] shadow-[var(--shadow-lg)] overflow-hidden z-50"
     >
-      <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]">
+      <div className="px-4 py-3 border-b border-[var(--line)] bg-[var(--bone-3)]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-[var(--accent)] text-white">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-[var(--primary)] text-[var(--bone-2)]">
             {user.name?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{user.name}</p>
-            <p className="text-xs text-[var(--text-muted)] truncate">{user.email}</p>
+            <p className="text-sm font-semibold text-[var(--ink)] truncate">{user.name}</p>
+            <p className="text-xs text-[var(--ink-soft)] truncate">{user.email}</p>
           </div>
         </div>
         <span className={`mt-2 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border font-medium ${insignia.clase}`}>
@@ -117,14 +141,14 @@ function MenuUsuario({ alCerrar }: { alCerrar: () => void }) {
       <div className="py-1">
         {opciones.map(({ href, icono: Icono, etiq }) => (
           <Link key={href} href={href} onClick={alCerrar}
-            className="flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] transition-colors">
+            className="flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--ink-soft)] hover:bg-[var(--bone-3)] hover:text-[var(--ink)] transition-colors">
             <Icono className="w-4 h-4" />
             {etiq}
           </Link>
         ))}
-        <div className="h-px bg-[var(--border)] my-1" />
+        <div className="h-px bg-[var(--line)] my-1" />
         <button onClick={cerrarSesion}
-          className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+          className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-[var(--danger)] hover:bg-red-50 transition-colors">
           <LogOut className="w-4 h-4" />
           Cerrar sesión
         </button>
@@ -138,7 +162,10 @@ export default function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const { count, openCart } = useCartStore();
-  const wishCount = useWishlistStore(s => s.count)();
+  const wishCountRaw = useWishlistStore(s => s.count)();
+  const hydrated = useHydrated();
+  // Hasta que el cliente hidrate, mostramos 0 para no romper el SSR.
+  const wishCount = hydrated ? wishCountRaw : 0;
 
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [dropAbierto, setDropAbierto] = useState(false);
@@ -182,8 +209,9 @@ export default function Navbar() {
   }, [busqueda]);
 
   useEffect(() => {
-    const fn = () => setDesplazado(window.scrollY > 4);
+    const fn = () => setDesplazado(window.scrollY > 12);
     window.addEventListener('scroll', fn, { passive: true });
+    fn();
     return () => window.removeEventListener('scroll', fn);
   }, []);
 
@@ -194,7 +222,7 @@ export default function Navbar() {
   if (pathname.startsWith('/auth')) return null;
 
   const enlaces      = user ? obtenerEnlaces(user.role as Rol) : [];
-  const totalCarrito = count();
+  const totalCarrito = hydrated ? count() : 0;
 
   const irABuscar = () => {
     const q = busqueda.trim();
@@ -222,59 +250,62 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-200 ${
+      {/* Cinta de confianza — scrollea con la página */}
+      <Marquee />
+
+      {/* Header sticky */}
+      <header className={`sticky top-0 z-40 border-b transition-[background,box-shadow,border-color] duration-300 ${
         desplazado
-          ? 'bg-[var(--nav-bg)]/95 backdrop-blur-xl shadow-lg shadow-black/20 border-b border-white/[0.06]'
-          : 'bg-[var(--nav-bg)] border-b border-transparent'
+          ? 'bg-[rgba(243,237,226,0.86)] backdrop-blur-[14px] border-[var(--line)] shadow-[0_6px_24px_rgba(40,30,18,0.06)]'
+          : 'bg-transparent border-transparent'
       }`}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 h-16 flex items-center gap-2 sm:gap-3 lg:gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center gap-3 lg:gap-6">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/40 group-hover:shadow-orange-500/60 group-hover:scale-105 transition-all duration-200">
+          <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+            <span className="w-9 h-9 bg-[var(--primary)] rounded-[10px] grid place-items-center shadow-[var(--shadow-sm)] group-hover:scale-105 transition-transform duration-200">
               <LogoIcon />
-            </div>
-            <span className="font-black text-lg text-white tracking-tight hidden sm:block">Shopper</span>
+            </span>
+            <span className="text-[22px] font-extrabold tracking-tight text-[var(--ink)] hidden sm:block"
+              style={{ fontFamily: 'var(--font-display)' }}>Shopper</span>
           </Link>
 
           {/* Nav links inline - desktop large */}
-          <div className="hidden lg:flex items-center gap-0.5 ml-1">
+          <div className="hidden lg:flex items-center gap-7 ml-2">
             {!user
               ? NAV_PUBLICO.map(({ href, label }) => (
                   <Link key={href} href={href}
-                    className="px-3 py-1.5 text-sm font-medium text-white/75 hover:text-white hover:bg-white/[0.08] rounded-full transition-all whitespace-nowrap">
+                    className="relative group py-1 text-[15px] font-medium text-[var(--ink)] whitespace-nowrap">
                     {label}
+                    <span className="absolute left-0 -bottom-0.5 h-0.5 w-0 bg-[var(--primary)] transition-all duration-300 group-hover:w-full" />
                   </Link>
                 ))
               : enlaces.slice(0, 4).map(({ href, label, icono: Icono }) => {
                   const activo = pathname === href || (href !== '/' && pathname.startsWith(href));
                   return (
                     <Link key={href} href={href}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full transition-all whitespace-nowrap ${
-                        activo
-                          ? 'bg-white/[0.12] text-white'
-                          : 'text-white/75 hover:text-white hover:bg-white/[0.08]'
-                      }`}>
-                      <Icono className="w-3.5 h-3.5" />
+                      className="relative group flex items-center gap-1.5 py-1 text-[15px] font-medium text-[var(--ink)] whitespace-nowrap">
+                      <Icono className="w-4 h-4" />
                       {label}
+                      <span className={`absolute left-0 -bottom-0.5 h-0.5 bg-[var(--primary)] transition-all duration-300 ${activo ? 'w-full' : 'w-0 group-hover:w-full'}`} />
                     </Link>
                   );
                 })}
           </div>
 
           {/* Búsqueda - píldora */}
-          <div ref={refBusqueda} className="flex-1 max-w-md xl:max-w-lg relative">
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-[var(--accent)] transition-colors pointer-events-none z-10" />
+          <div ref={refBusqueda} className="flex-1 max-w-md xl:max-w-lg relative ml-auto">
+            <div className="relative flex items-center gap-2.5 bg-[var(--bone-2)] border-[1.5px] border-[var(--line)] rounded-full px-4 py-2.5 focus-within:border-[var(--primary)] focus-within:shadow-[0_0_0_4px_rgba(199,90,43,0.12)] transition-all">
+              <Search className="w-[18px] h-[18px] text-[var(--ink-soft)] shrink-0" />
               <input
                 type="text"
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
                 onKeyDown={onKeyBusqueda}
                 onFocus={() => { if (sugerencias.length > 0) setSugAbierto(true); }}
-                placeholder="Buscar productos..."
+                placeholder="Busca productos, tiendas, marcas…"
                 autoComplete="off"
-                className="w-full pl-11 pr-4 py-2.5 text-sm bg-white/[0.08] hover:bg-white/[0.12] focus:bg-white text-white focus:text-[var(--text-primary)] placeholder:text-white/40 focus:placeholder:text-[var(--text-muted)] rounded-full border border-white/10 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30 outline-none transition-all"
+                className="flex-1 bg-transparent outline-none text-sm text-[var(--ink)] placeholder:text-[var(--ink-soft)]"
               />
             </div>
 
@@ -286,19 +317,19 @@ export default function Navbar() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 6 }}
                   transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute left-0 right-0 top-full mt-2 bg-white border border-[var(--border)] rounded-2xl shadow-[0_12px_40px_rgba(15,17,17,0.20)] overflow-hidden z-50"
+                  className="absolute left-0 right-0 top-full mt-2 bg-[var(--bone-2)] border border-[var(--line)] rounded-[var(--r-lg)] shadow-[var(--shadow-lg)] overflow-hidden z-50"
                 >
                   {cargandoSug && sugerencias.length === 0 ? (
-                    <div className="flex items-center gap-2 px-4 py-4 text-sm text-[var(--text-muted)]">
+                    <div className="flex items-center gap-2 px-4 py-4 text-sm text-[var(--ink-soft)]">
                       <Loader2 className="w-4 h-4 animate-spin" /> Buscando…
                     </div>
                   ) : sugerencias.length === 0 ? (
-                    <div className="px-4 py-4 text-sm text-[var(--text-muted)]">
+                    <div className="px-4 py-4 text-sm text-[var(--ink-soft)]">
                       Sin coincidencias para “{busqueda.trim()}”
                     </div>
                   ) : (
                     <>
-                      <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Productos</p>
+                      <p className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--ink-soft)]">Productos</p>
                       {sugerencias.map((s, i) => (
                         <button
                           key={s._id}
@@ -306,25 +337,25 @@ export default function Navbar() {
                           onMouseEnter={() => setResaltado(i)}
                           onClick={() => irAProducto(s)}
                           className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
-                            resaltado === i ? 'bg-[var(--surface-2)]' : 'hover:bg-[var(--surface-2)]'
+                            resaltado === i ? 'bg-[var(--bone-3)]' : 'hover:bg-[var(--bone-3)]'
                           }`}
                         >
-                          <div className="w-10 h-10 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] overflow-hidden shrink-0 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-lg bg-[var(--bone-3)] border border-[var(--line)] overflow-hidden shrink-0 flex items-center justify-center">
                             {s.images?.[0]
-                              ? <img src={s.images[0]} alt={s.title} className="w-full h-full object-contain p-1" />
-                              : <Package className="w-4 h-4 text-[var(--text-muted)]" />}
+                              ? <img src={s.images[0]} alt={s.title} className="w-full h-full object-cover" />
+                              : <Package className="w-4 h-4 text-[var(--ink-soft)]" />}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-[var(--text-primary)] truncate">{s.title}</p>
-                            {s.storeName && <p className="text-[11px] text-[var(--text-muted)] truncate">{s.storeName}</p>}
+                            <p className="text-sm font-medium text-[var(--ink)] truncate">{s.title}</p>
+                            {s.storeName && <p className="text-[11px] text-[var(--ink-soft)] truncate">{s.storeName}</p>}
                           </div>
-                          <span className="text-sm font-bold text-[var(--text-primary)] shrink-0">{fmtCOP(s.price)}</span>
+                          <span className="text-sm font-bold text-[var(--ink)] shrink-0">{fmtCOP(s.price)}</span>
                         </button>
                       ))}
                       <button
                         type="button"
                         onClick={irABuscar}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 border-t border-[var(--border)] text-sm font-semibold text-[var(--accent-dark)] hover:bg-orange-50 transition-colors">
+                        className="w-full flex items-center gap-2 px-4 py-2.5 border-t border-[var(--line)] text-sm font-semibold text-[var(--primary-2)] hover:bg-[var(--bone-3)] transition-colors">
                         <Search className="w-3.5 h-3.5" />
                         Ver todos los resultados de “{busqueda.trim()}”
                       </button>
@@ -336,15 +367,15 @@ export default function Navbar() {
           </div>
 
           {/* Acciones */}
-          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
 
             {/* Wishlist */}
             <Link href="/wishlist"
-              className="relative hidden sm:flex items-center justify-center w-10 h-10 text-white/80 hover:text-white hover:bg-white/[0.10] rounded-full transition-all"
+              className="relative hidden sm:grid place-items-center w-11 h-11 text-[var(--ink)] hover:bg-[var(--bone-3)] rounded-full transition-colors"
               title="Lista de deseos">
               <Heart className="w-5 h-5" />
               {wishCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none ring-2 ring-[var(--nav-bg)]">
+                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-[var(--primary)] text-[var(--bone-2)] text-[11px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
                   {wishCount > 9 ? '9+' : wishCount}
                 </span>
               )}
@@ -352,18 +383,18 @@ export default function Navbar() {
 
             {/* Carrito */}
             <button onClick={openCart}
-              className="relative flex items-center justify-center w-10 h-10 text-white/80 hover:text-white hover:bg-white/[0.10] rounded-full transition-all"
+              className="relative grid place-items-center w-11 h-11 text-[var(--ink)] hover:bg-[var(--bone-3)] rounded-full transition-colors"
               title="Ver carrito">
-              <ShoppingCart className="w-5 h-5" strokeWidth={2} />
+              <ShoppingBag className="w-5 h-5" strokeWidth={2} />
               <AnimatePresence>
                 {totalCarrito > 0 && (
                   <motion.span
                     key="badge"
-                    initial={{ scale: 0 }}
+                    initial={{ scale: 0.4 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                    className="absolute top-1 right-1 min-w-[16px] h-[16px] bg-[var(--accent)] text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none ring-2 ring-[var(--nav-bg)]"
+                    className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-[var(--primary)] text-[var(--bone-2)] text-[11px] font-bold rounded-full flex items-center justify-center px-1 leading-none"
                   >
                     {totalCarrito > 9 ? '9+' : totalCarrito}
                   </motion.span>
@@ -371,28 +402,24 @@ export default function Navbar() {
               </AnimatePresence>
             </button>
 
-            {/* Divisor */}
-            <div className="hidden md:block w-px h-6 bg-white/[0.10] mx-1.5" />
-
             {/* Usuario / Login */}
             {user ? (
-              <div className="relative" ref={refDropdown}>
+              <div className="relative ml-1" ref={refDropdown}>
                 <button onClick={() => setDropAbierto(v => !v)}
-                  className="flex items-center gap-2 pl-1 pr-2 sm:pr-3 py-1 rounded-full text-white hover:bg-white/[0.10] transition-all"
+                  className="flex items-center gap-2 pl-1 pr-2 sm:pr-3 py-1 rounded-full text-[var(--ink)] hover:bg-[var(--bone-3)] transition-all"
                   title={user.name}>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-xs font-black text-white shadow-md shadow-orange-500/40">
+                  <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-xs font-black text-[var(--bone-2)] shadow-[var(--shadow-sm)]">
                     {user.name?.[0]?.toUpperCase() ?? '?'}
                   </div>
                   <span className="text-sm font-semibold hidden lg:block max-w-[110px] truncate">{user.name?.split(' ')[0]}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-white/60 transition-transform duration-150 ${dropAbierto ? 'rotate-180' : ''} hidden md:block`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-[var(--ink-soft)] transition-transform duration-150 ${dropAbierto ? 'rotate-180' : ''} hidden md:block`} />
                 </button>
                 <AnimatePresence>
                   {dropAbierto && <MenuUsuario alCerrar={() => setDropAbierto(false)} />}
                 </AnimatePresence>
               </div>
             ) : (
-              <Link href="/auth/login"
-                className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold transition-all hover:shadow-lg hover:shadow-orange-500/40">
+              <Link href="/auth/login" className="btn btn-primary hidden sm:inline-flex ml-1" style={{ padding: '11px 22px' }}>
                 Ingresar
               </Link>
             )}
@@ -400,7 +427,7 @@ export default function Navbar() {
             {/* Hamburguesa */}
             <button
               onClick={() => setMenuAbierto(v => !v)}
-              className="lg:hidden w-10 h-10 flex items-center justify-center text-white hover:bg-white/[0.10] rounded-full transition-all">
+              className="lg:hidden w-11 h-11 grid place-items-center text-[var(--ink)] hover:bg-[var(--bone-3)] rounded-full transition-all">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={menuAbierto ? 'x' : 'menu'}
@@ -424,39 +451,39 @@ export default function Navbar() {
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:hidden bg-[var(--nav-bg)] border-t border-white/[0.06] overflow-hidden"
+              className="lg:hidden bg-[var(--bone-2)] border-t border-[var(--line)] overflow-hidden"
             >
-              <div className="px-3 sm:px-4 py-3 flex flex-col gap-1.5 max-h-[calc(100vh-4rem)] overflow-y-auto">
+              <div className="px-4 py-3 flex flex-col gap-1.5 max-h-[calc(100vh-4rem)] overflow-y-auto">
 
                 {user ? (
                   <>
-                    <div className="flex items-center gap-3 px-3 py-3 mb-1 bg-white/[0.06] rounded-2xl border border-white/[0.08]">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-sm font-black text-white shrink-0 shadow-md shadow-orange-500/30">
+                    <div className="flex items-center gap-3 px-3 py-3 mb-1 bg-[var(--bone-3)] rounded-2xl border border-[var(--line)]">
+                      <div className="w-10 h-10 rounded-full bg-[var(--primary)] flex items-center justify-center text-sm font-black text-[var(--bone-2)] shrink-0">
                         {user.name?.[0]?.toUpperCase() ?? '?'}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                        <p className="text-xs text-white/50 truncate">{user.email}</p>
+                        <p className="text-sm font-semibold text-[var(--ink)] truncate">{user.name}</p>
+                        <p className="text-xs text-[var(--ink-soft)] truncate">{user.email}</p>
                       </div>
                     </div>
                     {enlaces.map(enlace => (
                       <Link key={enlace.href} href={enlace.href}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                           pathname === enlace.href
-                            ? 'bg-[var(--accent)]/15 text-[var(--accent-bright)] font-semibold'
-                            : 'text-white/80 hover:bg-white/[0.06]'
+                            ? 'bg-[var(--accent-subtle)] text-[var(--primary-2)] font-semibold'
+                            : 'text-[var(--ink)] hover:bg-[var(--bone-3)]'
                         }`}>
                         <enlace.icono className="w-4 h-4" />
                         {enlace.label}
                       </Link>
                     ))}
                     <Link href="/wishlist"
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/[0.06] transition-colors sm:hidden">
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[var(--ink)] hover:bg-[var(--bone-3)] transition-colors sm:hidden">
                       <Heart className="w-4 h-4" />
                       Lista de deseos
-                      {wishCount > 0 && <span className="ml-auto text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-bold">{wishCount}</span>}
+                      {wishCount > 0 && <span className="ml-auto text-[10px] bg-[var(--primary)] text-[var(--bone-2)] px-1.5 py-0.5 rounded-full font-bold">{wishCount}</span>}
                     </Link>
-                    <div className="h-px bg-white/[0.08] my-1" />
+                    <div className="h-px bg-[var(--line)] my-1" />
                     <button
                       onClick={async () => {
                         try { await api.post('/auth/logout'); } catch { /* */ }
@@ -464,7 +491,7 @@ export default function Navbar() {
                         setMenuAbierto(false);
                         window.location.href = '/';
                       }}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-rose-400 hover:bg-rose-500/10 transition-colors">
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[var(--danger)] hover:bg-red-50 transition-colors">
                       <LogOut className="w-4 h-4" />
                       Cerrar sesión
                     </button>
@@ -473,23 +500,23 @@ export default function Navbar() {
                   <>
                     {NAV_PUBLICO.map(({ href, label }) => (
                       <Link key={href} href={href}
-                        className="flex items-center px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/[0.06] transition-colors">
+                        className="flex items-center px-3 py-2.5 rounded-xl text-sm text-[var(--ink)] hover:bg-[var(--bone-3)] transition-colors">
                         {label}
                       </Link>
                     ))}
                     <Link href="/wishlist"
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/80 hover:bg-white/[0.06] transition-colors sm:hidden">
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[var(--ink)] hover:bg-[var(--bone-3)] transition-colors sm:hidden">
                       <Heart className="w-4 h-4" />
                       Lista de deseos
                     </Link>
-                    <div className="h-px bg-white/[0.08] my-1" />
+                    <div className="h-px bg-[var(--line)] my-1" />
                     <Link href="/auth/login"
-                      className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm bg-white/[0.06] hover:bg-white/[0.10] text-white font-semibold transition-all">
+                      className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-full text-sm border-[1.5px] border-[var(--ink)] text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--bone-2)] font-semibold transition-all">
                       <User className="w-4 h-4" />
                       Iniciar sesión
                     </Link>
                     <Link href="/auth/register"
-                      className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-bold transition-all">
+                      className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-full text-sm bg-[var(--primary)] hover:bg-[var(--primary-2)] text-[var(--bone-2)] font-bold transition-all">
                       <Sparkles className="w-4 h-4" />
                       Comenzar gratis
                     </Link>
@@ -499,10 +526,7 @@ export default function Navbar() {
             </motion.div>
           )}
         </AnimatePresence>
-      </nav>
-
-      {/* Espaciador para nav fijo */}
-      <div className="h-16" />
+      </header>
     </>
   );
 }

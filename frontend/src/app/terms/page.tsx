@@ -80,7 +80,7 @@ export default function TermsPage() {
             <ArrowLeft className="w-4 h-4" /> Volver al inicio
           </Link>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-[var(--accent)] rounded-2xl flex items-center justify-center shadow-lg shadow-orange-400/30">
+            <div className="w-14 h-14 bg-[var(--accent)] rounded-2xl flex items-center justify-center shadow-[var(--shadow-sm)]">
               <Scale className="w-7 h-7 text-white" />
             </div>
             <div>
@@ -93,9 +93,9 @@ export default function TermsPage() {
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-10">
         {/* Aviso legal */}
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-8 flex items-start gap-3">
-          <Shield className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-800">
+        <div className="bg-[var(--selva-soft)] border border-[var(--selva)]/30 rounded-2xl p-5 mb-8 flex items-start gap-3">
+          <Shield className="w-5 h-5 text-[var(--selva)] shrink-0 mt-0.5" />
+          <div className="text-sm text-[var(--selva)]">
             <p className="font-bold mb-1">Documento legal vinculante</p>
             <p>Estos términos constituyen un acuerdo legal entre usted y Shopper Colombia SAS. Cumplen con la Ley 527 de 1999 (Comercio Electrónico), Ley 1480 de 2011 (Estatuto del Consumidor) y la Ley 1581 de 2012 (Protección de Datos Personales).</p>
           </div>
@@ -104,7 +104,7 @@ export default function TermsPage() {
         {/* Secciones */}
         <div className="space-y-5">
           {SECTIONS.map(({ icon: Icon, color, titulo, contenido }) => (
-            <div key={titulo} className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+            <div key={titulo} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center shrink-0`}>
                   <Icon className="w-5 h-5" />
@@ -116,7 +116,7 @@ export default function TermsPage() {
           ))}
 
           {/* Sección contacto */}
-          <div className="bg-white border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+          <div className="bg-[var(--bone-2)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
             <h2 className="text-base font-bold text-[var(--text-primary)] mb-3">6. Contacto y jurisdicción</h2>
             <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
               Para consultas relacionadas con estos términos contacte: <strong>legal@shopper.co</strong>
@@ -129,11 +129,11 @@ export default function TermsPage() {
 
         {/* Footer navegación */}
         <div className="mt-8 pt-6 border-t border-[var(--border)] flex flex-wrap gap-4 text-sm text-[var(--text-muted)]">
-          <Link href="/privacy" className="hover:text-[var(--blue)] hover:underline transition-colors">Política de Privacidad</Link>
+          <Link href="/privacy" className="hover:text-[var(--primary)] hover:underline transition-colors">Política de Privacidad</Link>
           <span>·</span>
-          <Link href="/" className="hover:text-[var(--blue)] hover:underline transition-colors">Inicio</Link>
+          <Link href="/" className="hover:text-[var(--primary)] hover:underline transition-colors">Inicio</Link>
           <span>·</span>
-          <Link href="/#tiendas" className="hover:text-[var(--blue)] hover:underline transition-colors">Explorar tiendas</Link>
+          <Link href="/#tiendas" className="hover:text-[var(--primary)] hover:underline transition-colors">Explorar tiendas</Link>
         </div>
       </div>
     </div>

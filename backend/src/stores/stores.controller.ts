@@ -6,6 +6,7 @@ import {
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
+import { SaveThemeDto } from './dto/save-theme.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -60,6 +61,42 @@ export class StoresController {
     @CurrentUser() user: any,
   ) {
     return this.storesService.update(id, user.id, user.role, dto);
+  }
+
+  // ── Versiones del diseño (snapshots) ──
+  @Post(':id/theme/snapshots')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
+  createSnapshot(@Param('id') id: string, @Body() dto: SaveThemeDto, @CurrentUser() user: any) {
+    return this.storesService.createSnapshot(id, user.id, user.role, dto.theme, dto.label);
+  }
+
+  @Get(':id/theme/snapshots')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
+  listSnapshots(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.storesService.listSnapshots(id, user.id, user.role);
+  }
+
+  @Post(':id/theme/snapshots/:snapId/restore')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
+  restoreSnapshot(@Param('id') id: string, @Param('snapId') snapId: string, @CurrentUser() user: any) {
+    return this.storesService.restoreSnapshot(id, snapId, user.id, user.role);
+  }
+
+  // ── Vista previa compartible (token de solo lectura) ──
+  @Post(':id/theme/preview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.OWNER, Role.ADMIN, Role.SUPER_ADMIN)
+  createPreview(@Param('id') id: string, @Body() dto: SaveThemeDto, @CurrentUser() user: any) {
+    return this.storesService.createPreview(id, user.id, user.role, dto.theme);
+  }
+
+  // Público: resuelve el token → tienda + theme (para /store/[slug]?preview=…)
+  @Get('theme/preview/:token')
+  getPreview(@Param('token') token: string) {
+    return this.storesService.getPreviewByToken(token);
   }
 
   // ── Eliminar tienda (solo admin / super_admin — el vendedor no puede) ──

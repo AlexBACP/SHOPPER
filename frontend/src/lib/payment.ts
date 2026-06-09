@@ -89,7 +89,7 @@ export async function verifyPayment(
 
 /**
  * Genera el checksum de integridad para Wompi (SHA-256).
- * ⚠️ NUNCA incluir el INTEGRITY_SECRET en el frontend.
+ * NUNCA incluir el INTEGRITY_SECRET en el frontend.
  * Esta función debe ejecutarse en el BACKEND.
  *
  * Formato: SHA256(reference + amount_in_cents + currency + integrity_secret)

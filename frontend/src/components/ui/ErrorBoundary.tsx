@@ -40,10 +40,18 @@ export default class ErrorBoundary extends React.Component<
                 className="flex items-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold px-5 py-2.5 rounded-xl text-sm transition-all hover:shadow-md">
                 <RefreshCw className="w-4 h-4" /> Recargar
               </button>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- recarga dura: resetea el estado roto del boundary */}
               <a href="/" className="flex items-center gap-2 border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text-secondary)] font-medium px-5 py-2.5 rounded-xl text-sm transition-all">
-                <Home className="w-4 h-4" /> Inicio
+                <Home className="w-4 h-4" /> Ir al inicio
               </a>
             </div>
+
+            {/* En desarrollo mostramos el detalle técnico; en producción se oculta. */}
+            {process.env.NODE_ENV !== 'production' && this.state.message && (
+              <pre className="mt-6 text-left text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 overflow-auto max-h-40 whitespace-pre-wrap">
+                {this.state.message}
+              </pre>
+            )}
           </div>
         </div>
       );

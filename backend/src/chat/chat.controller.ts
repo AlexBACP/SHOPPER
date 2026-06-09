@@ -1,5 +1,6 @@
 // src/chat/chat.controller.ts
 import { Controller, Post, Body, HttpException, HttpStatus, Inject } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Pool } from 'pg';
 import { MongoClient } from 'mongodb';
 import * as https from 'https';
@@ -12,15 +13,27 @@ interface ChatMessage {
 
 interface ChatDto {
   messages: ChatMessage[];
+  role?: string; // rol del usuario actual: 'buyer' | 'owner' | 'admin' | 'super_admin'
+  page?: string; // ruta actual del usuario (opcional, para dar contexto)
 }
 
 // ── System prompt del asistente ──────────────────────────
-function buildSystemPrompt(context: string): string {
+function buildSystemPrompt(context: string, role?: string, page?: string): string {
+  const esVendedor = role === 'owner' || role === 'admin' || role === 'super_admin';
+  const perfil = esVendedor
+    ? `## Usuario actual\nEstás hablando con un **VENDEDOR (owner)**. Prioriza ayudarle a **configurar, personalizar y hacer crecer su tienda y ventas**. Sé proactivo: sugiere el siguiente paso útil.`
+    : role === 'buyer'
+      ? `## Usuario actual\nEstás hablando con un **COMPRADOR**. Ayúdale a encontrar productos, comprar con confianza y contactar vendedores.`
+      : `## Usuario actual\nNo se conoce el rol. Pregunta si quiere **comprar** o **vender** para orientarlo mejor.`;
+  const rutaActual = page ? `\nRuta actual del usuario: \`${page}\`.` : '';
+
   return `Eres Shoppy, el asistente virtual inteligente de **Shopper** — un marketplace multi-vendedor colombiano donde vendedores independientes abren sus tiendas y compradores encuentran productos únicos.
+
+${perfil}${rutaActual}
 
 ## Tu personalidad
 - Amable, directo y muy útil. Siempre en español colombiano.
-- Usas emojis con moderación para dar calidez (máximo 1-2 por respuesta).
+- NO uses emojis en tus respuestas. Mantén un tono cálido pero profesional, solo con texto.
 - Eres experto en el marketplace Shopper y siempre buscas la mejor solución para el usuario.
 - Cuando no sabes algo, lo dices con honestidad.
 - Usas formato con listas o pasos cuando la respuesta lo requiere.
@@ -37,6 +50,26 @@ ${context}
 - Dar información sobre tiendas y productos disponibles en el marketplace
 - Navegar rutas: portal (/), dashboard (/dashboard), mis tiendas (/owner/stores), productos (/owner/products), carrito (/cart), órdenes (/orders)
 - Resolver dudas sobre seguridad, precios y políticas de Shopper
+
+## NUEVO: Personalización de tienda (tipo Shopify)
+Cada vendedor puede **personalizar su tienda a su gusto** desde **/owner/stores → botón "Editar"** (o al crearla). Opciones:
+- **Color de tu marca**: elige un color de acento (paleta o color personalizado). Tiñe el logo, los acentos y los botones de tu tienda.
+- **Banner/portada**: imagen de cabecera de la tienda (subir archivo o pegar URL).
+- **Mensaje destacado (tagline)**: un anuncio corto (ej. "Envío gratis esta semana") que aparece bajo el nombre.
+- **WhatsApp de contacto**: el número con el que los compradores te escribirán.
+- **Logo** y **descripción**.
+Hay una **vista previa en vivo** que muestra cómo quedará la tienda antes de guardar. Los cambios se aplican al guardar y se ven en \`/store/{slug}\`.
+
+## NUEVO: Contacto comprador ↔ vendedor por WhatsApp
+- Si el vendedor configuró su **WhatsApp** en el editor de tienda, en cada **producto** y en la **página de la tienda** aparece el botón verde **"Contactar al vendedor"** que abre WhatsApp con un mensaje pre-llenado sobre el producto.
+- Consejo a vendedores: configura tu WhatsApp para cerrar más ventas; responde rápido y con amabilidad.
+
+## Consejos para vender mejor (cuando ayudes a un vendedor)
+- Sube **fotos claras** y un **logo**; elige un **color de marca** que te represente.
+- Escribe **descripciones concretas** y mantén el **stock al día**.
+- Usa el **mensaje destacado** para promos puntuales.
+- Activa tu **WhatsApp** y responde rápido.
+- Publica la tienda (botón "Activar") para que aparezca en el marketplace.
 
 ## Lo que NO puedes hacer
 - Procesar pagos, reembolsos ni transacciones reales
@@ -182,6 +215,8 @@ export class ChatController {
     @Inject('MONGO_CLIENT')   private readonly mongoClient: MongoClient,
   ) {}
 
+  // Endpoint público → rate-limit firme por IP para proteger la cuota de Gemini.
+  @Throttle({ global: { ttl: 60_000, limit: 15 }, hour: { ttl: 3_600_000, limit: 120 } })
   @Post()
   async chat(@Body() dto: ChatDto) {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -201,7 +236,7 @@ export class ChatController {
     try {
       // 1. Obtener contexto real
       const context      = await getRealContext(this.pool, this.mongoClient);
-      const systemPrompt = buildSystemPrompt(context);
+      const systemPrompt = buildSystemPrompt(context, dto.role, dto.page);
 
       // 2. Construir contenidos
       const contents = buildContents(dto.messages);

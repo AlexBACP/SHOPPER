@@ -27,13 +27,13 @@ export class UploadController {
   ) {
     if (!file) throw new BadRequestException('No se recibió ningún archivo');
 
-    const validFolders = ['stores', 'products'];
+    const validFolders = ['stores', 'products', 'reviews'];
     const target = validFolders.includes(folder) ? folder : 'products';
 
     const url = await this.uploadService.uploadImage(
       file.buffer,
       file.mimetype,
-      target as 'stores' | 'products',
+      target as 'stores' | 'products' | 'reviews',
     );
 
     return { url };

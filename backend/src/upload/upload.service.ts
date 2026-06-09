@@ -29,7 +29,7 @@ export class UploadService {
   async uploadImage(
     fileBuffer: Buffer,
     mimetype:   string,
-    folder:     'stores' | 'products',
+    folder:     'stores' | 'products' | 'reviews',
   ): Promise<string> {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(mimetype)) {

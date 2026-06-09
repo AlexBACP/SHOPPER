@@ -1,7 +1,9 @@
 'use client';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Home, ArrowLeft, Search, ShoppingBag } from 'lucide-react';
+import {
+  Home, ArrowLeft, ShoppingBag,
+} from 'lucide-react';
 
 export default function NotFound() {
   return (
@@ -20,17 +22,17 @@ export default function NotFound() {
           className="mx-auto mb-8 w-48 h-48"
         >
           <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="100" cy="100" r="90" fill="#FFF7ED" stroke="#FED7AA" strokeWidth="2"/>
-            <rect x="55" y="70" width="90" height="70" rx="8" fill="white" stroke="#E5E7EB" strokeWidth="2"/>
-            <rect x="65" y="82" width="40" height="6" rx="3" fill="#E5E7EB"/>
-            <rect x="65" y="94" width="60" height="4" rx="2" fill="#F3F4F6"/>
-            <rect x="65" y="104" width="50" height="4" rx="2" fill="#F3F4F6"/>
-            <rect x="65" y="114" width="35" height="4" rx="2" fill="#F3F4F6"/>
-            <circle cx="130" cy="130" r="22" fill="#FF9900" opacity="0.15"/>
-            <circle cx="130" cy="130" r="16" fill="white" stroke="#FF9900" strokeWidth="2.5"/>
-            <path d="M124 124l12 12M136 124l-12 12" stroke="#FF9900" strokeWidth="2.5" strokeLinecap="round"/>
-            <circle cx="70" cy="65" r="8" fill="#DBEAFE" stroke="#93C5FD" strokeWidth="1.5"/>
-            <path d="M67 65l2 2 4-4" stroke="#3B82F6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="100" cy="100" r="90" fill="#faf6ef" stroke="#ddd2c0" strokeWidth="2"/>
+            <rect x="55" y="70" width="90" height="70" rx="8" fill="#faf6ef" stroke="#ddd2c0" strokeWidth="2"/>
+            <rect x="65" y="82" width="40" height="6" rx="3" fill="#ddd2c0"/>
+            <rect x="65" y="94" width="60" height="4" rx="2" fill="#ece3d4"/>
+            <rect x="65" y="104" width="50" height="4" rx="2" fill="#ece3d4"/>
+            <rect x="65" y="114" width="35" height="4" rx="2" fill="#ece3d4"/>
+            <circle cx="130" cy="130" r="22" fill="#c75a2b" opacity="0.15"/>
+            <circle cx="130" cy="130" r="16" fill="#faf6ef" stroke="#c75a2b" strokeWidth="2.5"/>
+            <path d="M124 124l12 12M136 124l-12 12" stroke="#c75a2b" strokeWidth="2.5" strokeLinecap="round"/>
+            <circle cx="70" cy="65" r="8" fill="#e7efe9" stroke="#2f5d4f" strokeWidth="1.5"/>
+            <path d="M67 65l2 2 4-4" stroke="#2f5d4f" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </motion.div>
 
@@ -44,15 +46,15 @@ export default function NotFound() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/"
-              className="flex items-center justify-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold px-6 py-3.5 rounded-xl transition-all hover:shadow-lg hover:shadow-orange-200/50 text-sm">
+              className="flex items-center justify-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold px-6 py-3.5 rounded-xl transition-all hover:shadow-[var(--shadow-md)] text-sm">
               <Home className="w-4 h-4" /> Ir al inicio
             </Link>
             <Link href="/#tiendas"
-              className="flex items-center justify-center gap-2 bg-white border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text-secondary)] font-medium px-6 py-3.5 rounded-xl transition-all text-sm hover:shadow-md">
+              className="flex items-center justify-center gap-2 bg-[var(--bone-2)] border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text-secondary)] font-medium px-6 py-3.5 rounded-xl transition-all text-sm hover:shadow-md">
               <ShoppingBag className="w-4 h-4" /> Explorar tiendas
             </Link>
             <button onClick={() => window.history.back()}
-              className="flex items-center justify-center gap-2 bg-white border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text-secondary)] font-medium px-6 py-3.5 rounded-xl transition-all text-sm">
+              className="flex items-center justify-center gap-2 bg-[var(--bone-2)] border border-[var(--border)] hover:bg-[var(--surface-2)] text-[var(--text-secondary)] font-medium px-6 py-3.5 rounded-xl transition-all text-sm">
               <ArrowLeft className="w-4 h-4" /> Volver atrás
             </button>
           </div>

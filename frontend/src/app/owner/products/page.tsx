@@ -1,38 +1,67 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, Plus, ArrowLeft, Trash2, Edit, Eye, EyeOff, Search, AlertTriangle, CheckCircle, Store, Loader2, X } from 'lucide-react';
+import {
+  Package, Plus, ArrowLeft, Trash2, Edit, Eye, EyeOff, Search, AlertTriangle, Loader2, X, Sparkles,
+} from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { handleApiError } from '@/lib/errors';
 import ImageUploader from '@/components/ui/ImageUploader';
 import { useSearchParams } from 'next/navigation';
 
 const fmt = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
-interface Producto { _id:string; title:string; description?:string; price:number; stock:number; sku:string; is_active:boolean; images?:string[]; store_id:string; }
+const CATS: { slug: string; label: string }[] = [
+  { slug: 'moda', label: 'Moda y Ropa' }, { slug: 'hogar', label: 'Hogar y Deco' },
+  { slug: 'tecnologia', label: 'Tecnología' }, { slug: 'artesanias', label: 'Artesanías' },
+  { slug: 'alimentos', label: 'Alimentos' }, { slug: 'deportes', label: 'Deportes' },
+  { slug: 'belleza', label: 'Belleza' }, { slug: 'ninos', label: 'Niños' },
+];
+
+interface Producto { _id:string; title:string; description?:string; category?:string; price:number; stock:number; sku:string; is_active:boolean; images?:string[]; store_id:string; }
 interface Tienda   { id:string; name:string; slug:string; }
 
 function ModalProducto({ prod, tiendas, storeId, onClose, onSaved }: { prod:Partial<Producto>|null; tiendas:Tienda[]; storeId?:string; onClose:()=>void; onSaved:()=>void }) {
   const [title,  setTitle]  = useState(prod?.title  ?? '');
   const [desc,   setDesc]   = useState(prod?.description ?? '');
+  const [category, setCategory] = useState(prod?.category ?? '');
   const [price,  setPrice]  = useState(String(prod?.price  ?? ''));
   const [stock,  setStock]  = useState(String(prod?.stock  ?? ''));
   const [sku,    setSku]    = useState(prod?.sku    ?? '');
   const [imgUrl, setImgUrl] = useState(prod?.images?.[0] ?? '');
   const [store,  setStore]  = useState(prod?.store_id ?? storeId ?? tiendas[0]?.id ?? '');
   const [saving, setSaving] = useState(false);
+  // Generador con IA
+  const [aiPrompt,  setAiPrompt]  = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const generar = async () => {
+    if (aiPrompt.trim().length < 3) { toast.error('Describe tu producto en unas palabras'); return; }
+    setAiLoading(true);
+    try {
+      const { data } = await api.post('/ai/product', { prompt: aiPrompt.trim() });
+      if (data.title)       setTitle(data.title);
+      if (data.description) setDesc(data.description);
+      if (data.price)       setPrice(String(data.price));
+      if (data.category)    setCategory(data.category);
+      if (!sku && data.title) setSku(data.title.slice(0, 3).toUpperCase().replace(/[^A-Z]/g, '') + '-' + Math.floor(100 + Math.random() * 900));
+      toast.success('¡Ficha generada! Revisa y ajusta lo que quieras');
+    } catch (e) { handleApiError(e, 'No pudimos generar la ficha con IA. Intenta de nuevo.'); }
+    finally { setAiLoading(false); }
+  };
 
   const save = async () => {
     if (!title.trim() || !price || !stock || !sku || !store) { toast.error('Completa todos los campos obligatorios'); return; }
     setSaving(true);
     try {
-      const body = { title, description:desc, price:parseFloat(price), stock:parseInt(stock), sku, images: imgUrl ? [imgUrl] : [] };
+      const body = { title, description:desc, category: category || undefined, price:parseFloat(price), stock:parseInt(stock), sku, images: imgUrl ? [imgUrl] : [] };
       if (prod?._id) await api.patch(`/stores/${store}/products/${prod._id}`, body);
       else           await api.post(`/stores/${store}/products`, body);
       toast.success(prod?._id ? 'Producto actualizado' : 'Producto creado');
       onSaved(); onClose();
-    } catch (e:any) { toast.error(e?.response?.data?.message ?? 'Error al guardar'); }
+    } catch (e) { handleApiError(e, 'No pudimos guardar el producto. Intenta de nuevo.'); }
     finally { setSaving(false); }
   };
 
@@ -40,37 +69,63 @@ function ModalProducto({ prod, tiendas, storeId, onClose, onSaved }: { prod:Part
     <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={onClose}
       className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 overflow-y-auto">
       <motion.div initial={{scale:0.95,y:10}} animate={{scale:1,y:0}} exit={{scale:0.95}}
-        onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-lg shadow-2xl my-4">
+        onClick={e=>e.stopPropagation()} className="bg-[var(--bone-2)] rounded-2xl w-full max-w-lg shadow-2xl my-4">
         <div className="bg-[var(--nav-bg)] px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <h2 className="font-bold text-white flex items-center gap-2"><Package className="w-4 h-4 text-[var(--accent)]"/>{prod?._id?'Editar producto':'Nuevo producto'}</h2>
           <button onClick={onClose} className="text-white/60 hover:text-white transition-colors"><X className="w-5 h-5"/></button>
         </div>
         <div className="p-6 space-y-4">
+          {/* Generador con IA */}
+          <div className="rounded-xl border border-[var(--primary)]/30 bg-[var(--accent-subtle)] p-4">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Sparkles className="w-4 h-4 text-[var(--primary-2)]" />
+              <span className="text-sm font-bold text-[var(--ink)]">Crea tu producto con IA</span>
+            </div>
+            <p className="text-xs text-[var(--ink-soft)] mb-2.5">Descríbelo en pocas palabras y la IA genera <b>nombre, descripción, categoría y precio sugerido</b>.</p>
+            <div className="flex gap-2">
+              <input
+                value={aiPrompt} onChange={e=>setAiPrompt(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); generar(); } }}
+                placeholder="Ej. mochila wayúu tejida a mano, mediana"
+                className="flex-1 px-3.5 py-2.5 text-sm border border-[var(--line)] rounded-lg bg-[var(--bone)] text-[var(--ink)] outline-none focus:border-[var(--primary)] transition-all" />
+              <button onClick={generar} disabled={aiLoading}
+                className="px-4 py-2.5 bg-[var(--ink)] hover:bg-[var(--primary-2)] text-[var(--bone-2)] text-sm font-bold rounded-lg transition-all disabled:opacity-60 flex items-center gap-2 shrink-0">
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-4 h-4" /> Generar</>}
+              </button>
+            </div>
+          </div>
+
           {tiendas.length > 1 && (
             <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Tienda *</label>
               <select value={store} onChange={e=>setStore(e.target.value)}
-                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all">
+                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all">
                 {tiendas.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
           )}
           <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Nombre *</label>
             <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Ej. Sombrero Vueltiao"
-              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
+              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
           <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Descripción</label>
             <textarea value={desc} onChange={e=>setDesc(e.target.value)} rows={3} placeholder="Describe el producto..."
-              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all resize-none"/></div>
+              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all resize-none"/></div>
+          <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Categoría</label>
+            <select value={category} onChange={e=>setCategory(e.target.value)}
+              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all">
+              <option value="">Sin categoría</option>
+              {CATS.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+            </select></div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Precio COP *</label>
               <input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder="0"
-                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
+                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
             <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Stock *</label>
               <input type="number" value={stock} onChange={e=>setStock(e.target.value)} placeholder="0"
-                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
+                className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
           </div>
           <div><label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">SKU *</label>
             <input value={sku} onChange={e=>setSku(e.target.value)} placeholder="Ej. SOC-001"
-              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-white outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
+              className="w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-lg bg-[var(--bone-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/></div>
           <div>
             <ImageUploader
               folder="products"
@@ -92,7 +147,7 @@ function ModalProducto({ prod, tiendas, storeId, onClose, onSaved }: { prod:Part
   );
 }
 
-export default function OwnerProductsPage() {
+function OwnerProductsContent() {
   const sp = useSearchParams();
   const storeIdParam = sp.get('store');
   const [tiendas,  setTiendas]  = useState<Tienda[]>([]);
@@ -120,13 +175,13 @@ export default function OwnerProductsPage() {
       await api.patch(`/stores/${p.store_id}/products/${p._id}`, { is_active: !p.is_active });
       toast.success(p.is_active ? 'Producto ocultado' : 'Producto activado');
       cargar();
-    } catch { toast.error('Error al actualizar'); }
+    } catch (e) { handleApiError(e, 'No pudimos actualizar el producto. Intenta de nuevo.'); }
   };
 
   const eliminar = async (p: Producto & {storeName:string}) => {
     if (!confirm('¿Eliminar este producto?')) return;
     try { await api.delete(`/stores/${p.store_id}/products/${p._id}`); toast.success('Eliminado'); cargar(); }
-    catch { toast.error('Error al eliminar'); }
+    catch (e) { handleApiError(e, 'No pudimos eliminar el producto. Intenta de nuevo.'); }
   };
 
   const filtrados = productos.filter(p => p.title.toLowerCase().includes(busqueda.toLowerCase()) || p.sku.toLowerCase().includes(busqueda.toLowerCase()));
@@ -158,7 +213,7 @@ export default function OwnerProductsPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"/>
             <input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar por nombre o SKU..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--bone-2)] border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
           </div>
           <span className="text-sm text-[var(--text-muted)]">{filtrados.length} resultados</span>
         </div>
@@ -175,7 +230,7 @@ export default function OwnerProductsPage() {
             <AnimatePresence mode="popLayout">
               {filtrados.map((p,i) => (
                 <motion.div key={p._id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,scale:0.95}} transition={{delay:i*0.04}}
-                  className={`bg-white border rounded-xl overflow-hidden hover:shadow-md transition-all ${!p.is_active ? 'opacity-60' : 'border-[var(--border)]'}`}>
+                  className={`bg-[var(--bone-2)] border rounded-xl overflow-hidden hover:shadow-md transition-all ${!p.is_active ? 'opacity-60' : 'border-[var(--border)]'}`}>
                   <div className="h-36 bg-[var(--surface-2)] relative flex items-center justify-center">
                     {p.images?.[0] ? <img src={p.images[0]} alt={p.title} className="w-full h-full object-contain p-3"/>
                       : <Package className="w-10 h-10 text-[var(--border-hover)]"/>}
@@ -219,5 +274,13 @@ export default function OwnerProductsPage() {
         {modal !== false && <ModalProducto prod={modal||{}} tiendas={tiendas} storeId={storeIdParam ?? undefined} onClose={()=>setModal(false)} onSaved={cargar}/>}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function OwnerProductsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)]" />}>
+      <OwnerProductsContent />
+    </Suspense>
   );
 }

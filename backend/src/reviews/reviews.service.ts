@@ -14,6 +14,7 @@ export interface Resena {
   user_name:  string;
   rating:     number;
   comment:    string | null;
+  image:      string | null;
   created_at: string;
 }
 
@@ -39,6 +40,7 @@ export class ReviewsService {
     productId: string,
     rating:    number,
     comment?:  string,
+    image?:    string,
   ): Promise<Resena> {
     // Validar que el producto existe en MongoDB
     let objectId: ObjectId;
@@ -60,10 +62,10 @@ export class ReviewsService {
     }
 
     const { rows } = await this.pool.query<Resena>(
-      `INSERT INTO reviews (product_id, user_id, rating, comment)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, product_id, user_id, rating, comment, created_at`,
-      [productId, userId, rating, comment ?? null],
+      `INSERT INTO reviews (product_id, user_id, rating, comment, image)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, product_id, user_id, rating, comment, image, created_at`,
+      [productId, userId, rating, comment ?? null, image ?? null],
     );
 
     const { rows: user } = await this.pool.query<{ name: string }>(
@@ -76,12 +78,12 @@ export class ReviewsService {
 
   async obtenerPorProducto(productId: string): Promise<Resena[]> {
     const { rows } = await this.pool.query<Resena>(
-      `SELECT r.id, r.product_id, r.user_id, r.rating, r.comment,
+      `SELECT r.id, r.product_id, r.user_id, r.rating, r.comment, r.image,
               r.created_at, u.name AS user_name
        FROM reviews r
        JOIN users u ON u.id = r.user_id
        WHERE r.product_id = $1
-       ORDER BY r.created_at DESC
+       ORDER BY (r.image IS NOT NULL) DESC, r.created_at DESC
        LIMIT 100`,
       [productId],
     );
@@ -128,7 +130,7 @@ export class ReviewsService {
 
   async resenaDelUsuario(productId: string, userId: string): Promise<Resena | null> {
     const { rows } = await this.pool.query<Resena>(
-      `SELECT r.id, r.product_id, r.user_id, r.rating, r.comment,
+      `SELECT r.id, r.product_id, r.user_id, r.rating, r.comment, r.image,
               r.created_at, u.name AS user_name
        FROM reviews r
        JOIN users u ON u.id = r.user_id
@@ -136,5 +138,25 @@ export class ReviewsService {
       [productId, userId],
     );
     return rows[0] ?? null;
+  }
+
+  /** Reputación agregada de una tienda: promedio y total de todas sus reseñas. */
+  async resumenTienda(storeId: string): Promise<{ promedio: number; total: number }> {
+    // IDs de los productos de la tienda (viven en MongoDB)
+    const prods = await this.products
+      .find({ store_id: storeId })
+      .project({ _id: 1 })
+      .toArray();
+    const ids = prods.map((p) => p._id.toString());
+    if (ids.length === 0) return { promedio: 0, total: 0 };
+
+    const { rows } = await this.pool.query<{ avg: string | null; total: string }>(
+      `SELECT AVG(rating)::float AS avg, COUNT(*) AS total
+       FROM reviews WHERE product_id = ANY($1)`,
+      [ids],
+    );
+    const total = Number(rows[0]?.total ?? 0);
+    const avg   = Number(rows[0]?.avg ?? 0);
+    return { promedio: total > 0 ? Math.round(avg * 10) / 10 : 0, total };
   }
 }

@@ -1,13 +1,21 @@
 import type { Metadata } from 'next';
-import { Inter, Geist_Mono } from 'next/font/google';
+import { Bricolage_Grotesque, Hanken_Grotesk, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/ui/Providers';
 
-const inter = Inter({
-  variable: '--font-inter',
+// Cuerpo / UI — reemplaza a Inter en el rediseño "Mercado Editorial"
+const hanken = Hanken_Grotesk({
+  variable: '--font-hanken',
   subsets:  ['latin'],
   display:  'swap',
-  weight:   ['400', '500', '600', '700', '800', '900'],
+  weight:   ['400', '500', '600', '700'],
+});
+// Display — titulares, nombres de sección, logo, totales
+const bricolage = Bricolage_Grotesque({
+  variable: '--font-bricolage',
+  subsets:  ['latin'],
+  display:  'swap',
+  weight:   ['400', '500', '600', '700', '800'],
 });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
@@ -40,16 +48,44 @@ export const metadata: Metadata = {
   other: {
     'mobile-web-app-capable':       'yes',
     'apple-mobile-web-app-capable': 'yes',
-    'msapplication-TileColor':      '#FF9900',
-    'theme-color':                  '#131921',
+    'msapplication-TileColor':      '#c75a2b',
+    'theme-color':                  '#221d16',
   },
   verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION },
+};
+
+// Datos estructurados globales (Organization + WebSite con caja de búsqueda).
+const SITE_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      name: 'Shopper',
+      url: SITE_URL,
+      logo: `${SITE_URL}/og-default.png`,
+      description: 'Marketplace colombiano de tiendas independientes verificadas.',
+    },
+    {
+      '@type': 'WebSite',
+      name: 'Shopper',
+      url: SITE_URL,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: { '@type': 'EntryPoint', urlTemplate: `${SITE_URL}/search?q={search_term_string}` },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${hanken.variable} ${bricolage.variable} ${geistMono.variable} antialiased`}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_LD).replace(/</g, '\\u003c') }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

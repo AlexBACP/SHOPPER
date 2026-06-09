@@ -6,7 +6,7 @@ import {
   ShoppingBag, ArrowLeft, MapPin, Package,
   Loader2, CreditCard, Shield, Lock, ChevronRight,
   Truck, BadgeCheck, Star, Phone, Smartphone,
-  Landmark, Wallet, Check, AlertCircle, ShieldCheck,
+  Landmark, Wallet, Check, AlertCircle, ShieldCheck, Banknote,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Link from 'next/link';
@@ -15,24 +15,32 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCartStore } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
+import { costoEnvio } from '@/lib/shipping';
+import { FREE_SHIPPING_THRESHOLD } from '@/config/constants';
 import api from '@/lib/api';
+import { getApiMessage } from '@/lib/errors';
+import OrderSummary from '@/components/cart/OrderSummary';
+import FreeShippingProgress from '@/components/cart/FreeShippingProgress';
 import { toast } from 'sonner';
 
 const schema = z.object({
-  shipping_name:    z.string().min(3, 'Nombre completo requerido'),
-  shipping_phone:   z.string().min(7, 'Teléfono de contacto requerido'),
-  shipping_address: z.string().min(5, 'Dirección válida requerida'),
-  shipping_city:    z.string().min(2, 'Ciudad requerida'),
-  shipping_dept:    z.string().min(2, 'Departamento requerido'),
-  shipping_notes:   z.string().optional(),
+  shipping_name:    z.string().trim().min(3, 'Nombre completo requerido'),
+  shipping_phone:   z.string().trim().regex(/^\d{10}$/, 'El teléfono debe tener 10 dígitos'),
+  shipping_address: z.string().trim().min(5, 'Dirección válida requerida'),
+  shipping_city:    z.string().trim().min(2, 'Ciudad requerida'),
+  shipping_dept:    z.string().trim().min(2, 'Departamento requerido'),
+  shipping_notes:   z.string().max(500, 'Máximo 500 caracteres').optional(),
 });
 type FormData = z.infer<typeof schema>;
-type PayMethod = 'pse' | 'nequi' | 'daviplata' | 'card';
+type PayMethod = 'pse' | 'nequi' | 'daviplata' | 'card' | 'cod';
 type Step = 'shipping' | 'payment' | 'processing';
 
 const fmt  = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
-const STEPS_LABELS = ['Envío', 'Pago', 'Confirmado'];
+const STEPS: { id: Step; label: string }[] = [
+  { id: 'shipping', label: 'Envío' },
+  { id: 'payment',  label: 'Pago' },
+];
 const STEP_IDX: Record<Step, number> = { shipping: 0, payment: 1, processing: 1 };
 
 const DEPARTAMENTOS = [
@@ -43,57 +51,57 @@ const DEPARTAMENTOS = [
   'Santander','Sucre','Tolima','Valle del Cauca','Vaupés','Vichada',
 ];
 
-const PAY_METHODS: Array<{
-  id: PayMethod; label: string; desc: string;
-  Icon: LucideIcon; iconBg: string; iconColor: string; ring: string;
-}> = [
-  { id: 'pse',       label: 'PSE',       desc: 'Débito desde tu banco',    Icon: Landmark,   iconBg: 'bg-blue-50',    iconColor: 'text-blue-600',    ring: 'border-blue-500 ring-blue-100'       },
-  { id: 'nequi',     label: 'Nequi',     desc: 'Billetera digital',        Icon: Smartphone, iconBg: 'bg-fuchsia-50', iconColor: 'text-fuchsia-600', ring: 'border-fuchsia-500 ring-fuchsia-100' },
-  { id: 'daviplata', label: 'Daviplata', desc: 'Pago móvil Davivienda',    Icon: Wallet,     iconBg: 'bg-red-50',     iconColor: 'text-red-600',     ring: 'border-red-500 ring-red-100'         },
-  { id: 'card',      label: 'Tarjeta',   desc: 'Crédito o débito',         Icon: CreditCard, iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-600',  ring: 'border-indigo-500 ring-indigo-100'   },
+const PAY_METHODS: Array<{ id: PayMethod; label: string; desc: string; Icon: LucideIcon; }> = [
+  { id: 'pse',       label: 'PSE',                  desc: 'Débito desde tu banco',          Icon: Landmark   },
+  { id: 'nequi',     label: 'Nequi',                desc: 'Billetera digital',              Icon: Smartphone },
+  { id: 'daviplata', label: 'Daviplata',            desc: 'Pago móvil Davivienda',          Icon: Wallet     },
+  { id: 'card',      label: 'Tarjeta',              desc: 'Crédito o débito',               Icon: CreditCard },
+  { id: 'cod',       label: 'Pago contra entrega',  desc: 'En efectivo al recibir',         Icon: Banknote   },
 ];
 
 function StepIndicator({ step }: { step: Step }) {
   const idx = STEP_IDX[step];
   return (
-    <div className="flex items-center gap-1 max-w-xs">
-      {STEPS_LABELS.map((label, i) => (
-        <div key={label} className="flex items-center gap-1 flex-1">
-          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all duration-300 ${
-            idx > i ? 'bg-green-500 text-white' :
-            idx === i ? 'bg-[var(--accent)] text-white shadow-lg shadow-orange-200/60' :
-            'bg-white/20 text-white/50'
-          }`}>
-            {idx > i ? <Check className="w-4 h-4" strokeWidth={3} /> : i + 1}
+    <div className="edc-steps" aria-label="Progreso">
+      {STEPS.map((s, i) => (
+        <div key={s.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <div className={'edc-step ' + (idx > i ? 'done' : idx === i ? 'active' : '')}>
+            <span className="num" aria-hidden>
+              {idx > i ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : String(i + 1).padStart(2, '0')}
+            </span>
+            <span className="lbl">{s.label}</span>
           </div>
-          <span className={`text-xs font-medium transition-colors ${idx >= i ? 'text-white' : 'text-white/40'}`}>{label}</span>
-          {i < STEPS_LABELS.length - 1 && (
-            <div className={`flex-1 h-0.5 transition-colors duration-500 ${idx > i ? 'bg-green-500' : 'bg-white/20'}`} />
-          )}
+          {i < STEPS.length - 1 && <span className="edc-step-line" />}
         </div>
       ))}
     </div>
   );
 }
 
-function InputField({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, error, required, children }: {
+  label: string; error?: string; required?: boolean; children: React.ReactNode;
+}) {
   return (
-    <div>
-      <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-1.5">{label}</label>
+    <div className="edc-field">
+      <label className="edc-field-label">
+        {label}{required && <span className="req">*</span>}
+      </label>
       {children}
       <AnimatePresence>
         {error && (
-          <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="text-xs text-red-500 mt-1 flex items-center gap-1">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
-          </motion.p>
+          <motion.span
+            className="edc-field-err"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <AlertCircle className="w-3.5 h-3.5" /> {error}
+          </motion.span>
         )}
       </AnimatePresence>
     </div>
   );
 }
-
-const inputCls = "w-full px-4 py-2.5 text-sm border border-[var(--input-border)] rounded-xl bg-white text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all";
 
 export default function CheckoutPage() {
   const { user }  = useAuthStore();
@@ -114,43 +122,54 @@ export default function CheckoutPage() {
   const disc      = discountAmount();
   const cartTotal = total();
   const cartCount = count();
+  const envioConocido = !!shippingData;
+  const envio         = envioConocido ? costoEnvio(shippingData!.shipping_dept, sub) : 0;
+  const totalConEnvio = cartTotal + envio;
 
-  if (!user || items.length === 0) return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center px-4">
-      <div className="text-center max-w-sm">
-        <div className="w-20 h-20 bg-white border border-[var(--border)] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-          <ShoppingBag className="w-10 h-10 text-[var(--border-hover)]" />
+  // —— Pantalla vacía (sin sesión / sin items) ——
+  if (!user || items.length === 0) {
+    return (
+      <div className="edc-empty-screen">
+        <div className="box">
+          <div className="icon"><ShoppingBag className="w-9 h-9" /></div>
+          <h2>
+            {!user
+              ? <>Inicia <span className="it">sesión</span> para continuar</>
+              : <>Tu carrito está <span className="it">vacío</span></>}
+          </h2>
+          <p>
+            {!user
+              ? 'Necesitas una cuenta para completar tu compra de forma segura.'
+              : 'Agrega productos antes de continuar al checkout.'}
+          </p>
+          <Link
+            href={!user ? '/auth/login' : '/'}
+            className="btn btn-primary"
+          >
+            {!user ? 'Iniciar sesión' : 'Explorar tiendas'}
+          </Link>
         </div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{!user ? 'Inicia sesión para continuar' : 'Tu carrito está vacío'}</h2>
-        <p className="text-[var(--text-muted)] text-sm mb-6">{!user ? 'Necesitas una cuenta para completar tu compra' : 'Agrega productos antes de pagar'}</p>
-        <Link href={!user ? '/auth/login' : '/'}
-          className="inline-flex items-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold px-6 py-3 rounded-xl transition-all hover:shadow-md">
-          {!user ? 'Iniciar sesión' : 'Explorar tiendas'}
-        </Link>
       </div>
-    </div>
-  );
+    );
+  }
 
-  const onShipping = (data: FormData) => { setShippingData(data); setStep('payment'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const onShipping = (data: FormData) => {
+    setShippingData(data);
+    setStep('payment');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const onPay = async () => {
     if (!shippingData) return;
     setStep('processing'); setError('');
     try {
-      // Crea la orden y prepara el pago. El backend devuelve la URL de la
-      // pasarela segura de Wompi (si está configurada) para redirigir al usuario.
       const res = await api.post('/orders/checkout/prepare', {
         ...shippingData,
         payment_method: payMethod,
         coupon_code: coupon ?? undefined,
         items: items.map(i => ({
-          productId: i.productId,
-          storeId:   i.storeId,
-          title:     i.title,
-          sku:       i.sku,
-          price:     i.price,
-          quantity:  i.quantity,
-          image:     i.image,
+          productId: i.productId, storeId: i.storeId, title: i.title, sku: i.sku,
+          price: i.price, quantity: i.quantity, image: i.image,
         })),
       });
 
@@ -160,25 +179,22 @@ export default function CheckoutPage() {
 
       clearCart();
 
-      // El cupón venció/se agotó entre el carrito y el checkout → avisar
       const couponDropped = !!coupon && couponApplied === false;
       if (couponDropped) {
         toast.warning(
           `El cupón "${coupon}" ya no es válido. Tu pedido se procesó sin descuento.`,
           { duration: 6000 },
         );
-        await new Promise(r => setTimeout(r, 1500)); // dar tiempo a leer el aviso
+        await new Promise(r => setTimeout(r, 1500));
       }
 
-      // Redirección real: a la pasarela de Wompi si está configurada,
-      // o a la página de confirmación interna en caso contrario.
       if (wompiConfigurado && urlPago) {
         window.location.href = urlPago;
       } else {
-        window.location.href = `/checkout/success?ref=${orderId}${couponDropped ? '&coupon_dropped=1' : ''}`;
+        window.location.href = `/checkout/success?ref=${orderId}&method=${payMethod}${couponDropped ? '&coupon_dropped=1' : ''}`;
       }
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al procesar el pago. Intenta de nuevo.';
+      const msg = getApiMessage(e, 'No pudimos procesar el pago. Intenta de nuevo en un momento.');
       setError(msg);
       toast.error(msg);
       setStep('payment');
@@ -186,63 +202,108 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      {/* Header */}
-      <div className="bg-[var(--nav-bg)] py-5 px-4 md:px-6 sticky top-0 z-30 shadow-lg">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-4 mb-4">
-            <Link href="/cart" className="text-white/60 hover:text-white transition-colors flex items-center gap-1.5 text-sm">
-              <ArrowLeft className="w-4 h-4" /> Volver al carrito
-            </Link>
-            <div className="w-px h-4 bg-white/20" />
-            <h1 className="text-base font-bold text-white">Finalizar compra</h1>
-          </div>
+    <div className="min-h-screen" style={{ background: 'var(--bone)' }}>
+      {/* —— Masthead editorial —— */}
+      <div className="edc-mast">
+        <div className="edc-mast-inner">
+          <Link href="/cart" className="edc-back">
+            <ArrowLeft className="w-4 h-4" /> Volver al carrito
+          </Link>
+          <h1 className="edc-title">Finalizar <span className="em">compra</span></h1>
           <StepIndicator step={step} />
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
-        {/* Formularios */}
+      <div className="edc-grid">
+
+        {/* —— Columna principal —— */}
         <div>
           <AnimatePresence mode="wait">
+
             {/* PASO 1: Envío */}
             {step === 'shipping' && (
-              <motion.div key="shipping" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3 }}>
-                <div className="bg-white border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
-                  <div className="bg-[var(--surface-2)] border-b border-[var(--border)] px-6 py-4 flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-[var(--accent)]" />
-                    <h2 className="font-bold text-[var(--text-primary)]">Información de envío</h2>
+              <motion.div
+                key="shipping"
+                initial={{ opacity: 0, x: 18 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -18 }}
+                transition={{ duration: 0.28 }}
+              >
+                <div className="edc-card">
+                  <div className="edc-card-h">
+                    <MapPin className="w-5 h-5" style={{ color: 'var(--primary)' }} />
+                    <h2>Datos de <span className="it">envío</span></h2>
                   </div>
-                  <form onSubmit={handleSubmit(onShipping)} className="p-6 space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <InputField label="Nombre completo *" error={errors.shipping_name?.message}>
-                        <input type="text" placeholder="Juan Pérez García" {...register('shipping_name')} className={inputCls} />
-                      </InputField>
-                      <InputField label="Teléfono de contacto *" error={errors.shipping_phone?.message}>
-                        <input type="tel" placeholder="310 000 0000" {...register('shipping_phone')} className={inputCls} />
-                      </InputField>
+
+                  <form onSubmit={handleSubmit(onShipping)} className="edc-card-body" noValidate>
+                    <div className="edc-row-2">
+                      <Field label="Nombre completo" required error={errors.shipping_name?.message}>
+                        <input
+                          type="text"
+                          placeholder="Juan Pérez García"
+                          className="edc-input"
+                          autoComplete="name"
+                          {...register('shipping_name')}
+                        />
+                      </Field>
+                      <Field label="Teléfono" required error={errors.shipping_phone?.message}>
+                        <input
+                          type="tel"
+                          inputMode="tel"
+                          placeholder="310 000 0000"
+                          className="edc-input"
+                          autoComplete="tel-national"
+                          {...register('shipping_phone')}
+                        />
+                      </Field>
                     </div>
-                    <InputField label="Dirección completa *" error={errors.shipping_address?.message}>
-                      <input type="text" placeholder="Calle 80 #45-32, Apto 501, Barrio Chapinero" {...register('shipping_address')} className={inputCls} />
-                    </InputField>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <InputField label="Ciudad *" error={errors.shipping_city?.message}>
-                        <input type="text" placeholder="Bogotá, Medellín, Cali..." {...register('shipping_city')} className={inputCls} />
-                      </InputField>
-                      <InputField label="Departamento *" error={errors.shipping_dept?.message}>
-                        <select {...register('shipping_dept')} className={inputCls}>
+
+                    <div className="edc-row-3" style={{ marginTop: 18 }}>
+                      <Field label="Dirección completa" required error={errors.shipping_address?.message}>
+                        <input
+                          type="text"
+                          placeholder="Calle 80 #45-32, Apto 501, Barrio Chapinero"
+                          className="edc-input"
+                          autoComplete="street-address"
+                          {...register('shipping_address')}
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="edc-row-2" style={{ marginTop: 18 }}>
+                      <Field label="Ciudad" required error={errors.shipping_city?.message}>
+                        <input
+                          type="text"
+                          placeholder="Bogotá, Medellín, Cali..."
+                          className="edc-input"
+                          autoComplete="address-level2"
+                          {...register('shipping_city')}
+                        />
+                      </Field>
+                      <Field label="Departamento" required error={errors.shipping_dept?.message}>
+                        <select
+                          className="edc-select"
+                          autoComplete="address-level1"
+                          {...register('shipping_dept')}
+                        >
                           <option value="">Seleccionar...</option>
                           {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
-                      </InputField>
+                      </Field>
                     </div>
-                    <InputField label="Instrucciones adicionales" error={undefined}>
-                      <textarea {...register('shipping_notes')} rows={3}
-                        placeholder="Ej. Portería principal, dejar con el vecino del 502..."
-                        className={`${inputCls} resize-none`} />
-                    </InputField>
-                    <button type="submit" disabled={isSubmitting}
-                      className="w-full flex items-center justify-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-black py-4 rounded-xl text-base transition-all hover:shadow-lg hover:shadow-orange-200/50 disabled:opacity-60">
+
+                    <div className="edc-row-3" style={{ marginTop: 18 }}>
+                      <Field label="Instrucciones adicionales">
+                        <textarea
+                          rows={3}
+                          className="edc-textarea"
+                          placeholder="Ej. Portería principal, dejar con el vecino del 502..."
+                          {...register('shipping_notes')}
+                        />
+                      </Field>
+                    </div>
+
+                    <button type="submit" disabled={isSubmitting} className="edc-cta-next" style={{ marginTop: 26 }}>
                       Continuar al pago <ChevronRight className="w-5 h-5" />
                     </button>
                   </form>
@@ -252,155 +313,222 @@ export default function CheckoutPage() {
 
             {/* PASO 2: Pago */}
             {(step === 'payment' || step === 'processing') && (
-              <motion.div key="payment" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.3 }}>
-                <div className="bg-white border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
-                  <div className="bg-[var(--surface-2)] border-b border-[var(--border)] px-6 py-4 flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-[var(--accent)]" />
-                    <h2 className="font-bold text-[var(--text-primary)]">Método de pago</h2>
+              <motion.div
+                key="payment"
+                initial={{ opacity: 0, x: 18 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -18 }}
+                transition={{ duration: 0.28 }}
+              >
+                <div className="edc-card">
+                  <div className="edc-card-h">
+                    <CreditCard className="w-5 h-5" style={{ color: 'var(--primary)' }} />
+                    <h2>Método de <span className="it">pago</span></h2>
                   </div>
-                  <div className="p-6">
-                    <p className="text-sm text-[var(--text-secondary)] mb-3">Elige cómo quieres pagar</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+
+                  <div className="edc-card-body">
+                    <div className="edc-pays" role="radiogroup" aria-label="Método de pago">
                       {PAY_METHODS.map(m => {
+                        const Ic = m.Icon;
                         const selected = payMethod === m.id;
                         return (
-                          <motion.button key={m.id} type="button"
+                          <button
+                            key={m.id}
+                            type="button"
+                            className="edc-pay"
+                            aria-pressed={selected}
+                            role="radio"
+                            aria-checked={selected}
                             onClick={() => setPayMethod(m.id)}
-                            whileTap={{ scale: 0.98 }}
-                            className={`relative flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all bg-white ${
-                              selected ? `${m.ring} ring-2 shadow-sm` : 'border-[var(--border)] hover:border-[var(--border-hover)]'
-                            }`}
                           >
-                            <div className={`w-11 h-11 rounded-xl ${m.iconBg} flex items-center justify-center shrink-0`}>
-                              <m.Icon className={`w-5 h-5 ${m.iconColor}`} strokeWidth={2} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold text-[var(--text-primary)] leading-tight">{m.label}</p>
-                              <p className="text-xs text-[var(--text-muted)] truncate">{m.desc}</p>
-                            </div>
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                              selected ? 'border-[var(--accent)] bg-[var(--accent)]' : 'border-[var(--border-hover)]'
-                            }`}>
-                              {selected && (
-                                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                                  <Check className="w-3 h-3 text-white" strokeWidth={3.5} />
-                                </motion.span>
-                              )}
-                            </div>
-                          </motion.button>
+                            <span className="edc-pay-icon"><Ic className="w-5 h-5" /></span>
+                            <span className="edc-pay-info">
+                              <span className="lbl">{m.label}</span>
+                              <span className="ds">{m.desc}</span>
+                            </span>
+                            <span className="edc-pay-check" aria-hidden>
+                              {selected && <Check className="w-3 h-3" strokeWidth={3.5} />}
+                            </span>
+                          </button>
                         );
                       })}
                     </div>
 
                     {/* Redes aceptadas */}
-                    <div className="flex flex-wrap items-center gap-2 mb-5">
-                      <span className="text-[11px] text-[var(--text-muted)]">Aceptamos:</span>
+                    <div className="edc-nets">
+                      <span className="lbl">Aceptamos:</span>
                       {['VISA', 'Mastercard', 'Amex', 'PSE', 'Nequi'].map(n => (
-                        <span key={n} className="px-2 py-0.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] text-[10px] font-bold text-[var(--text-secondary)] tracking-wide">{n}</span>
+                        <span key={n} className="edc-net">{n}</span>
                       ))}
                     </div>
 
+                    {/* Error */}
                     {error && (
-                      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-                        className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+                      <motion.div
+                        className="edc-note err"
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                      >
+                        <AlertCircle className="w-4 h-4" />
+                        <span>{error}</span>
                       </motion.div>
                     )}
 
-                    <div className="flex items-start gap-2.5 text-xs text-[var(--text-secondary)] mb-3 bg-green-50 border border-green-200 rounded-xl p-3">
-                      <ShieldCheck className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
-                      <span>Pago protegido con cifrado <strong>SSL 256-bit</strong>. No almacenamos los datos de tu tarjeta en ningún momento.</span>
-                    </div>
-                    <div className="flex items-start gap-2.5 text-xs text-blue-700 mb-6 bg-blue-50 border border-blue-200 rounded-xl p-3">
-                      <Lock className="w-4 h-4 shrink-0 mt-0.5" />
-                      <span>Al confirmar, tu pago se procesa de forma segura con <strong>Wompi</strong> (Bancolombia) y recibirás la confirmación de tu pedido al instante.</span>
-                    </div>
+                    {/* Avisos según método */}
+                    {payMethod === 'cod' ? (
+                      <div className="edc-note ok">
+                        <Banknote className="w-4 h-4" />
+                        <span>
+                          <strong>Pago contra entrega:</strong> pagas en <strong>efectivo al recibir</strong> tu pedido. Ten el monto exacto listo. El vendedor coordinará la entrega contigo.
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="edc-note ok">
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>
+                            Pago protegido con cifrado <strong>SSL 256-bit</strong>. No almacenamos los datos de tu tarjeta en ningún momento.
+                          </span>
+                        </div>
+                        <div className="edc-note warn">
+                          <Lock className="w-4 h-4" />
+                          <span>
+                            Al confirmar, tu pago se procesa de forma segura con <strong>Wompi</strong> (Bancolombia) y recibirás la confirmación al instante.
+                          </span>
+                        </div>
+                      </>
+                    )}
 
-                    <div className="flex gap-3">
-                      <button type="button" onClick={() => setStep('shipping')} disabled={step === 'processing'}
-                        className="flex-1 py-3.5 border border-[var(--border)] rounded-xl text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                    <div style={{ display: 'flex', gap: 12, marginTop: 22 }}>
+                      <button
+                        type="button"
+                        onClick={() => setStep('shipping')}
+                        disabled={step === 'processing'}
+                        className="edc-cta-back"
+                      >
                         <ArrowLeft className="w-4 h-4" /> Atrás
                       </button>
-                      <motion.button type="button" onClick={onPay}
+                      <button
+                        type="button"
+                        onClick={onPay}
                         disabled={step === 'processing'}
-                        whileTap={{ scale: 0.98 }}
-                        className="flex-[1.6] py-3.5 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-black rounded-xl text-sm transition-all hover:shadow-lg hover:shadow-orange-200/50 flex items-center justify-center gap-2 disabled:opacity-60">
+                        className="edc-cta-pay"
+                      >
                         {step === 'processing'
-                          ? <><Loader2 className="w-4 h-4 animate-spin" /> Redirigiendo al pago…</>
-                          : <><Lock className="w-4 h-4" /> Pagar {fmt(cartTotal)}</>
+                          ? <><Loader2 className="w-4 h-4 animate-spin" /> {payMethod === 'cod' ? 'Confirmando…' : 'Redirigiendo…'}</>
+                          : payMethod === 'cod'
+                            ? <><Banknote className="w-4 h-4" /> Confirmar · {fmt(totalConEnvio)}</>
+                            : <><Lock className="w-4 h-4" /> Pagar {fmt(totalConEnvio)}</>
                         }
-                      </motion.button>
+                      </button>
                     </div>
                   </div>
                 </div>
               </motion.div>
             )}
+
           </AnimatePresence>
         </div>
 
-        {/* Sidebar resumen */}
-        <div className="space-y-4">
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="bg-white border border-[var(--border)] rounded-2xl p-5 shadow-sm">
-            <h3 className="font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-              <ShoppingBag className="w-4 h-4 text-[var(--accent)]" /> Tu pedido ({cartCount})
-            </h3>
-            <div className="space-y-3 mb-4 max-h-52 overflow-y-auto pr-1">
+        {/* —— Sidebar resumen —— */}
+        <aside className="edc-side">
+
+          {/* Resumen de pedido */}
+          <motion.section
+            className="edc-summary"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <header className="edc-summary-h">
+              <div>
+                <div className="lbl">Tu pedido</div>
+                <h3 className="ti">Resumen <span className="it">de compra</span></h3>
+              </div>
+              <span className="ct">×{cartCount}</span>
+            </header>
+
+            <div style={{ padding: '14px 22px 0' }}>
+              <FreeShippingProgress subtotal={sub} size="compact" />
+            </div>
+
+            <div className="edc-summary-items">
               {items.map(it => (
-                <div key={it.productId} className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg overflow-hidden shrink-0">
-                    {it.image ? <img src={it.image} alt={it.title} className="w-full h-full object-contain p-1" /> : <Package className="w-4 h-4 text-[var(--text-muted)] m-auto mt-3" />}
+                <div className="edc-summary-item" key={it.productId}>
+                  <div className="img">
+                    {it.image
+                      ? <img src={it.image} alt={it.title} loading="lazy" />
+                      : <Package className="w-4 h-4" style={{ color: 'var(--ink-soft)' }} />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold truncate">{it.title}</p>
-                    <p className="text-xs text-[var(--text-muted)]">×{it.quantity}</p>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="ti">{it.title}</div>
+                    <div className="qt">×{it.quantity}</div>
                   </div>
-                  <p className="text-xs font-black text-[var(--text-primary)] shrink-0">{fmt(it.price * it.quantity)}</p>
+                  <span className="pr">{fmt(it.price * it.quantity)}</span>
                 </div>
               ))}
             </div>
-            <div className="border-t border-[var(--border)] pt-3 space-y-2 text-sm">
-              <div className="flex justify-between text-[var(--text-secondary)]"><span>Subtotal</span><span>{fmt(sub)}</span></div>
-              {disc > 0 && <div className="flex justify-between text-green-600 font-semibold"><span>Descuento ({discount}%)</span><span>−{fmt(disc)}</span></div>}
-              <div className="flex justify-between text-[var(--text-secondary)]"><span>IVA 19%</span><span>{fmt(iva)}</span></div>
-              <div className="flex justify-between font-black text-base text-[var(--text-primary)] pt-1 border-t border-[var(--border)]">
-                <span>Total</span><span className="text-[var(--accent-dark)]">{fmt(cartTotal)}</span>
-              </div>
-              <p className="text-[10px] text-[var(--text-muted)]">* IVA 19% incluido · Ley colombiana</p>
-            </div>
-          </motion.div>
 
-          {shippingData && step !== 'shipping' && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-              className="bg-white border border-[var(--border)] rounded-2xl p-4 shadow-sm">
-              <p className="font-bold text-[var(--text-primary)] mb-2 flex items-center gap-1.5 text-sm">
-                <Truck className="w-4 h-4 text-[var(--accent)]" /> Enviar a
-              </p>
-              <div className="text-xs text-[var(--text-secondary)] space-y-0.5">
-                <p className="font-semibold">{shippingData.shipping_name}</p>
-                <p>{shippingData.shipping_address}</p>
-                <p>{shippingData.shipping_city}, {shippingData.shipping_dept}</p>
-                <p className="flex items-center gap-1 text-[var(--text-muted)]">
-                  <Phone className="w-3 h-3" />{shippingData.shipping_phone}
+            <div className="edc-summary-totals">
+              <OrderSummary
+                itemCount={count()}
+                subtotal={sub}
+                discountPct={discount}
+                discountAmount={disc}
+                ivaIncluded={iva}
+                shipping={envioConocido ? envio : 'pending'}
+              />
+              {sub < FREE_SHIPPING_THRESHOLD && (
+                <p style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 6, fontStyle: 'italic' }}>
+                  Envío gratis en compras sobre {fmt(FREE_SHIPPING_THRESHOLD)}.
                 </p>
+              )}
+            </div>
+          </motion.section>
+
+          {/* Dirección confirmada */}
+          {shippingData && step !== 'shipping' && (
+            <motion.section
+              className="edc-ship"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="h">
+                <Truck className="w-4 h-4" /> Enviar a
               </div>
-            </motion.div>
+              <p>
+                <span className="nm">{shippingData.shipping_name}</span><br />
+                {shippingData.shipping_address}<br />
+                {shippingData.shipping_city}, {shippingData.shipping_dept}
+              </p>
+              <p style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 11.5, color: 'var(--ink-soft)' }}>
+                <Phone className="w-3 h-3" /> {shippingData.shipping_phone}
+              </p>
+            </motion.section>
           )}
 
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-            className="bg-white border border-[var(--border)] rounded-2xl p-4 shadow-sm space-y-3">
+          {/* Trust badges */}
+          <motion.section
+            className="edc-trust-list"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             {[
-              { icon: Shield,    color: 'text-green-600', text: 'Pago 100% seguro',         sub: 'SSL 256-bit certificado' },
-              { icon: BadgeCheck,color: 'text-blue-600',  text: 'Vendedores verificados',    sub: 'Identidad confirmada' },
-              { icon: Star,      color: 'text-orange-500',text: 'Satisfacción garantizada',  sub: 'Política de devoluciones' },
-            ].map(({ icon: Icon, color, text, sub }) => (
-              <div key={text} className="flex items-center gap-3 text-xs">
-                <Icon className={`w-5 h-5 ${color} shrink-0`} />
-                <div><p className="font-semibold text-[var(--text-primary)]">{text}</p><p className="text-[var(--text-muted)]">{sub}</p></div>
+              { Icon: Shield,     cls: 'ok', t: 'Pago 100% seguro',         d: 'Certificado SSL 256-bit' },
+              { Icon: BadgeCheck, cls: 'pr', t: 'Vendedores verificados',   d: 'Identidad confirmada' },
+              { Icon: Star,       cls: 'in', t: 'Satisfacción garantizada', d: 'Política de devoluciones' },
+            ].map(({ Icon, cls, t, d }) => (
+              <div className="edc-trust-item" key={t}>
+                <span className={`ic ${cls}`}><Icon className="w-4 h-4" /></span>
+                <div>
+                  <div className="ti">{t}</div>
+                  <div className="ds">{d}</div>
+                </div>
               </div>
             ))}
-          </motion.div>
-        </div>
+          </motion.section>
+        </aside>
       </div>
     </div>
   );

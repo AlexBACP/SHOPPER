@@ -1,10 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Search, Eye, EyeOff, CheckCircle, AlertCircle, RefreshCw, ExternalLink, Shield, Users, Package } from 'lucide-react';
+import {
+  motion,
+} from 'framer-motion';
+import {
+  Store, Search, Eye, EyeOff, CheckCircle, AlertCircle, RefreshCw, ExternalLink, Shield, Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { handleApiError } from '@/lib/errors';
 
 const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.05 } } };
 const item    = { hidden:{opacity:0,y:12}, visible:{opacity:1,y:0,transition:{ease:[0.16,1,0.3,1] as [number,number,number,number],duration:0.4}} };
@@ -18,7 +23,7 @@ export default function AdminStoresPage() {
   const cargar = async () => {
     setLoading(true);
     try { const r = await api.get('/stores'); setTiendas(r.data); }
-    catch { toast.error('Error al cargar tiendas'); } finally { setLoading(false); }
+    catch (e) { handleApiError(e, 'No pudimos cargar las tiendas. Intenta de nuevo.'); } finally { setLoading(false); }
   };
   useEffect(() => { cargar(); }, []);
 
@@ -27,7 +32,7 @@ export default function AdminStoresPage() {
       await api.patch(`/stores/${t.id}`, { is_published: !t.is_published });
       toast.success(t.is_published ? 'Tienda desactivada' : '¡Tienda activada!');
       cargar();
-    } catch { toast.error('Error al actualizar'); }
+    } catch (e) { handleApiError(e, 'No pudimos actualizar la tienda. Intenta de nuevo.'); }
   };
 
   const filtradas = tiendas.filter(t => {
@@ -60,7 +65,7 @@ export default function AdminStoresPage() {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4">
             {[{label:'Total',value:tiendas.length,color:'text-white'},{label:'Activas',value:pub,color:'text-green-300'},{label:'Inactivas',value:ocultas,color:'text-yellow-300'}].map(s=>(
-              <div key={s.label} className="bg-white/10 rounded-xl px-4 py-3 text-center">
+              <div key={s.label} className="bg-[var(--bone-2)]/10 rounded-xl px-4 py-3 text-center">
                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
                 <p className="text-white/50 text-xs">{s.label}</p>
               </div>
@@ -74,12 +79,12 @@ export default function AdminStoresPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"/>
             <input value={busqueda} onChange={e=>setBusqueda(e.target.value)} placeholder="Buscar tienda o slug..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-[var(--bone-2)] border border-[var(--border)] rounded-lg outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all"/>
           </div>
           <div className="flex gap-2">
             {([['all','Todas'],['published','Activas'],['hidden','Inactivas']] as const).map(([v,l])=>(
               <button key={v} onClick={()=>setFiltro(v)}
-                className={`text-xs px-3 py-2 rounded-lg border font-medium transition-all ${filtro===v?'bg-[var(--accent)] border-[var(--accent)] text-white':'bg-white border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]'}`}>
+                className={`text-xs px-3 py-2 rounded-lg border font-medium transition-all ${filtro===v?'bg-[var(--accent)] border-[var(--accent)] text-white':'bg-[var(--bone-2)] border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]'}`}>
                 {l}
               </button>
             ))}
@@ -94,8 +99,8 @@ export default function AdminStoresPage() {
         ) : (
           <motion.div variants={stagger} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtradas.map(t=>(
-              <motion.div key={t.id} variants={item} className="bg-white border border-[var(--border)] rounded-xl overflow-hidden hover:shadow-md transition-all group">
-                <div className="h-24 bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center relative">
+              <motion.div key={t.id} variants={item} className="bg-[var(--bone-2)] border border-[var(--border)] rounded-xl overflow-hidden hover:shadow-md transition-all group">
+                <div className="h-24 bg-[var(--bone-3)] flex items-center justify-center relative">
                   {t.logo_url?<img src={t.logo_url} alt={t.name} className="w-12 h-12 rounded-xl object-cover shadow-md"/>
                     :<div className="w-12 h-12 bg-[var(--accent)] rounded-xl flex items-center justify-center shadow-md"><span className="text-white text-xl font-black">{t.name[0]?.toUpperCase()}</span></div>}
                   <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full border font-semibold flex items-center gap-1 ${t.is_published?'bg-green-100 text-green-700 border-green-200':'bg-gray-100 text-gray-500 border-gray-200'}`}>
@@ -110,7 +115,7 @@ export default function AdminStoresPage() {
                       className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${t.is_published?'border-gray-200 text-gray-600 hover:bg-gray-50':'border-green-200 text-green-700 hover:bg-green-50'}`}>
                       {t.is_published?<><EyeOff className="w-3.5 h-3.5"/>Desactivar</>:<><Eye className="w-3.5 h-3.5"/>Activar</>}
                     </button>
-                    <Link href={`/store/${t.slug}`} target="_blank"
+                    <Link href={`/store/${t.slug}`} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)] font-medium transition-all ml-auto">
                       <ExternalLink className="w-3.5 h-3.5"/>Ver tienda
                     </Link>

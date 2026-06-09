@@ -8,12 +8,14 @@
  *   - <SeccionResenas> — lista de reseñas + formulario para agregar
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Loader2, Trash2, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { Star, Loader2, Trash2, MessageSquare, CheckCircle2, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { handleApiError } from '@/lib/errors';
 import { useAuthStore } from '@/store/auth.store';
+import ImageUploader from '@/components/ui/ImageUploader';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -24,6 +26,7 @@ export interface Resena {
   user_name:   string;
   rating:      number;
   comment:     string | null;
+  image:       string | null;
   created_at:  string;
 }
 
@@ -31,6 +34,29 @@ export interface ResumenResenas {
   promedio:     number;
   total:        number;
   por_estrella: Record<1|2|3|4|5, number>;
+}
+
+export type OrdenResena = 'fotos' | 'recientes' | 'mejores' | 'peores';
+
+const OPCIONES_ORDEN: { value: OrdenResena; label: string }[] = [
+  { value: 'fotos',     label: 'Con fotos primero' },
+  { value: 'recientes', label: 'Más recientes'     },
+  { value: 'mejores',   label: 'Mejor calificadas' },
+  { value: 'peores',    label: 'Peor calificadas'  },
+];
+
+/** Ordena una copia de las reseñas según el criterio elegido. */
+function ordenarResenas(lista: Resena[], orden: OrdenResena): Resena[] {
+  const recientes = (a: Resena, b: Resena) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  const copia = [...lista];
+  switch (orden) {
+    case 'fotos':     return copia.sort((a, b) => (Number(!!b.image) - Number(!!a.image)) || recientes(a, b));
+    case 'mejores':   return copia.sort((a, b) => (b.rating - a.rating) || recientes(a, b));
+    case 'peores':    return copia.sort((a, b) => (a.rating - b.rating) || recientes(a, b));
+    case 'recientes':
+    default:          return copia.sort(recientes);
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -169,10 +195,13 @@ export function SeccionResenas({ productId }: SeccionResenasProps): React.ReactE
   const [resumen,  setResumen]  = useState<ResumenResenas | null>(null);
   const [miResena, setMiResena] = useState<Resena | null>(null);
   const [cargando, setCargando] = useState(true);
+  // Por defecto: con foto primero, luego más recientes (dan más confianza). P1.7
+  const [orden,    setOrden]    = useState<OrdenResena>('fotos');
 
   // Form
   const [rating,   setRating]   = useState(0);
   const [comment,  setComment]  = useState('');
+  const [image,    setImage]    = useState('');
   const [enviando, setEnviando] = useState(false);
   const [mostrarForm, setMostrarForm] = useState(false);
 
@@ -202,20 +231,22 @@ export function SeccionResenas({ productId }: SeccionResenasProps): React.ReactE
     cargarMia();
   }, [cargar, cargarMia]);
 
+  const resenasOrdenadas = useMemo(() => ordenarResenas(resenas, orden), [resenas, orden]);
+
   const handleEnviar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0) { toast.error('Selecciona una calificación'); return; }
     setEnviando(true);
     try {
-      await api.post('/reviews', { product_id: productId, rating, comment: comment.trim() || undefined });
+      await api.post('/reviews', { product_id: productId, rating, comment: comment.trim() || undefined, image: image || undefined });
       toast.success('¡Reseña publicada!');
       setRating(0);
       setComment('');
+      setImage('');
       setMostrarForm(false);
       await Promise.all([cargar(), cargarMia()]);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg ?? 'Error al publicar la reseña');
+      handleApiError(err, 'No pudimos publicar tu reseña. Intenta de nuevo.');
     } finally {
       setEnviando(false);
     }
@@ -227,8 +258,8 @@ export function SeccionResenas({ productId }: SeccionResenasProps): React.ReactE
       toast.success('Reseña eliminada');
       setMiResena(null);
       await cargar();
-    } catch {
-      toast.error('No se pudo eliminar la reseña');
+    } catch (e) {
+      handleApiError(e, 'No pudimos eliminar la reseña. Intenta de nuevo.');
     }
   };
 
@@ -320,6 +351,13 @@ export function SeccionResenas({ productId }: SeccionResenasProps): React.ReactE
                 />
                 <p className="text-right text-xs text-[var(--text-muted)] mt-1">{comment.length}/500</p>
               </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5" /> Foto (opcional)
+                </p>
+                <ImageUploader folder="reviews" label="" value={image} onChange={(url) => setImage(url)} />
+                <p className="text-[11px] text-[var(--text-muted)] mt-1">Una foto real del producto da mucha más confianza a otros compradores</p>
+              </div>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -370,7 +408,21 @@ export function SeccionResenas({ productId }: SeccionResenasProps): React.ReactE
       {/* Lista de reseñas */}
       {!cargando && resenas.length > 0 && (
         <div className="flex flex-col gap-4">
-          {resenas.map((resena, i) => (
+          {/* Selector de orden (P1.7) */}
+          {resenas.length > 1 && (
+            <div className="flex items-center justify-end gap-2">
+              <label htmlFor="orden-resenas" className="text-xs text-[var(--text-muted)]">Ordenar por</label>
+              <select
+                id="orden-resenas"
+                value={orden}
+                onChange={e => setOrden(e.target.value as OrdenResena)}
+                className="text-xs font-medium border border-[var(--border)] rounded-lg px-2.5 py-1.5 bg-[var(--surface)] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] cursor-pointer"
+              >
+                {OPCIONES_ORDEN.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+          )}
+          {resenasOrdenadas.map((resena, i) => (
             <motion.div
               key={resena.id}
               initial={{ opacity: 0, y: 12 }}
@@ -407,6 +459,12 @@ export function SeccionResenas({ productId }: SeccionResenasProps): React.ReactE
 
               {resena.comment && (
                 <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{resena.comment}</p>
+              )}
+              {resena.image && (
+                <a href={resena.image} target="_blank" rel="noopener noreferrer" className="inline-block">
+                  <img src={resena.image} alt="Foto de la reseña"
+                    className="w-24 h-24 rounded-xl object-cover border border-[var(--border)] hover:opacity-90 transition-opacity" />
+                </a>
               )}
             </motion.div>
           ))}

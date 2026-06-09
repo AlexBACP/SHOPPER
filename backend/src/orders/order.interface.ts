@@ -31,6 +31,11 @@ export interface Order {
   shipping_city?:   string;
   shipping_dept?:   string;
   shipping_notes?:  string;
+  shipping_cost?:   number;
+  carrier?:         string | null;
+  tracking_number?: string | null;
+  proof_image?:     string | null;
+  shipped_at?:      Date | null;
   coupon_code?:     string | null;
   discount_pct?:    number;
   created_at:       Date;

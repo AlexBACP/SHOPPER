@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -31,10 +31,10 @@ function estaVencido(token: string): boolean {
  *  3. Si el refresh también está vencido o falla → logout automático.
  *  4. Programa un refresh proactivo 2 minutos antes de que venza el token activo.
  *
- * Sin esto hay un flash donde user=null aunque haya sesión activa.
+ * Renderiza los children de inmediato (SSR-friendly) y resuelve la sesión en
+ * segundo plano. Las rutas protegidas las cubre el middleware del servidor.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [listo, setListo] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -83,7 +83,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Sin sesión → nada que hacer
       if (!accessToken || !user) {
-        setListo(true);
         return;
       }
 
@@ -92,7 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Si el refreshToken también está vencido → logout inmediato
         if (!refreshToken || estaVencido(refreshToken)) {
           logout();
-          setListo(true);
           return;
         }
 
@@ -113,8 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Token vigente → programar refresh proactivo
         programarRefresh(accessToken);
       }
-
-      setListo(true);
     };
 
     inicializar();
@@ -123,11 +119,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
-
-  // Fondo negro mientras hidrata — evita flash de "no autenticado"
-  if (!listo) {
-    return <div className="min-h-screen bg-[var(--bg)]" />;
-  }
 
   return <>{children}</>;
 }

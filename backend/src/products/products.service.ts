@@ -28,6 +28,7 @@ export class ProductsService {
       ...(dto.compare_at_price !== undefined && { compare_at_price: dto.compare_at_price }),
       stock:            dto.stock,
       description:      dto.description,
+      ...(dto.category !== undefined && { category: dto.category }),
       images:           dto.images ?? [],
       variants:         dto.variants ?? [],
       attributes:       dto.attributes ?? {},

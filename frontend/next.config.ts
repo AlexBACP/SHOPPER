@@ -12,9 +12,12 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'platform-lookaside.fbsbx.com' },
       { protocol: 'https', hostname: '**.amazonaws.com'       },
+      { protocol: 'https', hostname: 'picsum.photos'          },
+      { protocol: 'https', hostname: 'fastly.picsum.photos'   },
       { protocol: 'http',  hostname: 'localhost'              },
     ],
     formats: ['image/avif', 'image/webp'],
+    deviceSizes: [360, 640, 768, 1024, 1280, 1536],
     minimumCacheTTL: 86400,
   },
 

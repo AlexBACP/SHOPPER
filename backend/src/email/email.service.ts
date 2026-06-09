@@ -17,6 +17,15 @@ export interface OrderConfirmationData {
   buyerEmail:      string;
   orderId:         string;
   items:           OrderEmailItem[];
+  /** Suma de precios de productos (IVA incluido). */
+  subtotal?:       number;
+  /** Monto del descuento aplicado en pesos. */
+  discount?:       number;
+  /** IVA contenido en el precio (informativo). */
+  ivaIncluded?:    number;
+  /** Costo de envío. */
+  shipping?:       number;
+  /** Total a pagar (IVA ya incluido). */
   total:           number;
   shippingName:    string;
   shippingAddress: string;
@@ -124,38 +133,64 @@ function totalRow(total: number): string {
   `;
 }
 
+/** Línea simple etiqueta/valor para el desglose. */
+function lineaResumen(label: string, value: string, color = COLOR.muted): string {
+  return `
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:${color};margin-bottom:7px;">
+      <span>${label}</span><span>${value}</span>
+    </div>
+  `;
+}
+
+/**
+ * Desglose del pedido con IVA incluido. El IVA se muestra como línea
+ * informativa (ya está dentro del precio) y nunca se suma al total.
+ */
+function desgloseRow(d: { subtotal?: number; discount?: number; ivaIncluded?: number; shipping?: number; total: number }): string {
+  if (d.subtotal === undefined) return totalRow(d.total);
+  const filas = [
+    lineaResumen('Subtotal', fmt(d.subtotal)),
+    d.discount && d.discount > 0 ? lineaResumen('Descuento', `−${fmt(d.discount)}`, COLOR.success) : '',
+    d.ivaIncluded !== undefined ? lineaResumen('IVA incluido (19%)', fmt(d.ivaIncluded), COLOR.dim) : '',
+    d.shipping !== undefined
+      ? lineaResumen('Envío', d.shipping === 0 ? 'Gratis' : fmt(d.shipping), d.shipping === 0 ? COLOR.success : COLOR.muted)
+      : '',
+  ].join('');
+  return `${filas}${totalRow(d.total)}`;
+}
+
 // ── Config de estados ─────────────────────────────────────────────────────────
 const CONFIG_STATUS: Record<string, { emoji: string; badge: string; titulo: string; mensaje: string; borderColor: string }> = {
   confirmed: {
-    emoji: '✓',
+    emoji: '',
     badge: `background:${COLOR.success}18;border:1px solid ${COLOR.success}35;`,
     titulo: 'Orden confirmada',
     mensaje: 'Tu orden fue confirmada y pronto comenzaremos a prepararla. Te avisaremos cuando esté lista para envío.',
     borderColor: COLOR.success,
   },
   processing: {
-    emoji: '📦',
+    emoji: '',
     badge: `background:${COLOR.blue}18;border:1px solid ${COLOR.blue}35;`,
     titulo: 'Preparando tu pedido',
     mensaje: 'Estamos empacando y preparando todos tus productos con cuidado. Pronto estará en camino.',
     borderColor: COLOR.blue,
   },
   shipped: {
-    emoji: '🚚',
+    emoji: '',
     badge: `background:${COLOR.gold}18;border:1px solid ${COLOR.gold}40;`,
     titulo: '¡Tu pedido está en camino!',
     mensaje: 'Tu pedido fue despachado y está en ruta hacia ti. Espera recibir noticias del transportador.',
     borderColor: COLOR.gold,
   },
   delivered: {
-    emoji: '🎉',
+    emoji: '',
     badge: `background:${COLOR.success}18;border:1px solid ${COLOR.success}35;`,
     titulo: '¡Pedido entregado!',
     mensaje: 'Tu pedido fue entregado exitosamente. Esperamos que estés disfrutando tus productos.',
     borderColor: COLOR.success,
   },
   cancelled: {
-    emoji: '✕',
+    emoji: '',
     badge: `background:${COLOR.danger}18;border:1px solid ${COLOR.danger}35;`,
     titulo: 'Orden cancelada',
     mensaje: 'Tu orden fue cancelada. Si realizaste algún pago, el reembolso será procesado en los próximos días hábiles.',
@@ -208,7 +243,7 @@ export class EmailService {
         </div>
       </div>
     `;
-    await this.send({ to: email, subject: `Bienvenido a Shopper, ${name} 👋`, html });
+    await this.send({ to: email, subject: `Bienvenido a Shopper, ${name}`, html });
   }
 
   // ── 2. Confirmación de orden al comprador ──────────────────────────────────
@@ -222,7 +257,7 @@ export class EmailService {
           ${LOGO}
 
           <div style="background:${COLOR.success}18;border:1px solid ${COLOR.success}35;border-radius:10px;padding:14px 18px;margin-bottom:28px;">
-            <span style="color:${COLOR.success};font-size:14px;font-weight:700;">✓ &nbsp;Orden #${shortId} recibida</span>
+            <span style="color:${COLOR.success};font-size:14px;font-weight:700;"> &nbsp;Orden #${shortId} recibida</span>
           </div>
 
           <h1 style="font-size:21px;font-weight:800;margin:0 0 8px;letter-spacing:-0.02em;">
@@ -235,7 +270,8 @@ export class EmailService {
           ${HR}
           <h2 style="font-size:13px;font-weight:700;color:${COLOR.muted};text-transform:uppercase;letter-spacing:0.1em;margin:0 0 14px;">Productos</h2>
           ${tablaItems(data.items)}
-          ${totalRow(data.total)}
+          ${desgloseRow(data)}
+          <p style="color:${COLOR.dim};font-size:11px;margin:8px 0 0;">Los precios incluyen IVA del 19% (legislación colombiana).</p>
 
           ${HR}
           <h2 style="font-size:13px;font-weight:700;color:${COLOR.muted};text-transform:uppercase;letter-spacing:0.1em;margin:0 0 12px;">Dirección de envío</h2>
@@ -290,7 +326,7 @@ export class EmailService {
           ${LOGO}
 
           <div style="background:${COLOR.gold}15;border:1px solid ${COLOR.gold}35;border-radius:10px;padding:14px 18px;margin-bottom:28px;">
-            <span style="color:${COLOR.gold};font-size:14px;font-weight:700;">🛍 &nbsp;Nuevo pedido en ${data.storeName}</span>
+            <span style="color:${COLOR.gold};font-size:14px;font-weight:700;"> &nbsp;Nuevo pedido en ${data.storeName}</span>
           </div>
 
           <h1 style="font-size:21px;font-weight:800;margin:0 0 8px;letter-spacing:-0.02em;">
@@ -389,8 +425,8 @@ export class EmailService {
     const asuntos: Record<string, string> = {
       confirmed:  `Orden confirmada #${shortId}`,
       processing: `Preparando tu pedido #${shortId}`,
-      shipped:    `¡Tu pedido #${shortId} está en camino! 🚚`,
-      delivered:  `¡Pedido entregado! #${shortId} 🎉`,
+      shipped:    `¡Tu pedido #${shortId} está en camino!`,
+      delivered:  `¡Pedido entregado! #${shortId}`,
       cancelled:  `Orden cancelada #${shortId}`,
       refunded:   `Reembolso procesado #${shortId}`,
     };

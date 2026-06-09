@@ -58,8 +58,8 @@ export class CreateOrderDto {
   shipping_notes?: string;
 
   @IsOptional()
-  @IsIn(['card', 'pse', 'nequi', 'daviplata'])
-  payment_method?: 'card' | 'pse' | 'nequi' | 'daviplata';
+  @IsIn(['card', 'pse', 'nequi', 'daviplata', 'cod'])
+  payment_method?: 'card' | 'pse' | 'nequi' | 'daviplata' | 'cod';
 
   @IsOptional()
   @IsString()

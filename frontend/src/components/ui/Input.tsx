@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { InputHTMLAttributes, TextareaHTMLAttributes, forwardRef, ReactNode } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -40,7 +41,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
         </div>
-        {error && <p className="text-xs text-red-400 flex items-center gap-1">⚠ {error}</p>}
+        {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3 shrink-0" /> {error}</p>}
         {hint && !error && <p className="text-xs text-[var(--text-muted)]">{hint}</p>}
       </div>
     );
@@ -71,7 +72,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           )}
           {...props}
         />
-        {error && <p className="text-xs text-red-400">⚠ {error}</p>}
+        {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3 shrink-0" /> {error}</p>}
         {hint && !error && <p className="text-xs text-[var(--text-muted)]">{hint}</p>}
       </div>
     );

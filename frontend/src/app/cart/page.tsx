@@ -8,7 +8,10 @@ import {
   X, AlertCircle, Lock, BadgeCheck,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useCartStore, IVA_RATE } from '@/store/cart.store';
+import { useCartStore } from '@/store/cart.store';
+import { useHydrated } from '@/hooks/useHydrated';
+import OrderSummary from '@/components/cart/OrderSummary';
+import FreeShippingProgress from '@/components/cart/FreeShippingProgress';
 import { toast } from 'sonner';
 
 const fmt = (n: number) =>
@@ -24,6 +27,8 @@ export default function CartPage() {
   const [couponInput,   setCouponInput]   = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError,   setCouponError]   = useState('');
+
+  const hydrated = useHydrated();
 
   const cartTotal = total();
   const cartCount = count();
@@ -43,17 +48,43 @@ export default function CartPage() {
   const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.06 } } };
   const item    = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { ease: [0.22, 1, 0.36, 1] as [number,number,number,number], duration: 0.4 } } };
 
+  // Mientras no hidrate el carrito desde localStorage, mostramos un esqueleto
+  // para evitar el parpadeo "carrito vacío" → "con productos".
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)]">
+        <div className="bg-[var(--bone-2)] border-b border-[var(--line)] py-8 px-4 md:px-6">
+          <div className="max-w-6xl mx-auto flex items-center gap-4">
+            <div className="w-12 h-12 bg-[var(--surface-2)] rounded-2xl animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-6 w-48 bg-[var(--surface-2)] rounded animate-pulse" />
+              <div className="h-4 w-32 bg-[var(--surface-2)] rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="h-28 bg-[var(--bone-2)] border border-[var(--line)] rounded-2xl animate-pulse" />
+            ))}
+          </div>
+          <div className="h-64 bg-[var(--bone-2)] border border-[var(--line)] rounded-2xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Hero header */}
-      <div className="bg-[var(--nav-bg)] py-8 px-4 md:px-6">
+      <div className="bg-[var(--bone-2)] border-b border-[var(--line)] py-8 px-4 md:px-6">
         <div className="max-w-6xl mx-auto flex items-center gap-4">
-          <div className="w-12 h-12 bg-[var(--accent)] rounded-2xl flex items-center justify-center shadow-lg shadow-orange-300/30">
-            <ShoppingCart className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-[var(--primary)] rounded-2xl flex items-center justify-center shadow-[var(--shadow-sm)]">
+            <ShoppingCart className="w-6 h-6 text-[var(--bone-2)]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Carrito de compras</h1>
-            <p className="text-white/50 text-sm">{cartCount > 0 ? `${cartCount} artículo${cartCount > 1 ? 's' : ''} · Total: ${fmt(cartTotal)}` : 'Tu carrito está vacío'}</p>
+            <h1 className="text-2xl font-bold text-[var(--ink)]">Carrito de compras</h1>
+            <p className="text-[var(--ink-soft)] text-sm">{cartCount > 0 ? `${cartCount} artículo${cartCount > 1 ? 's' : ''} · Total: ${fmt(cartTotal)}` : 'Tu carrito está vacío'}</p>
           </div>
         </div>
       </div>
@@ -64,25 +95,30 @@ export default function CartPage() {
             <motion.div
               initial={{ scale: 0.8 }} animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
-              className="w-28 h-28 bg-white border-2 border-dashed border-[var(--border)] rounded-3xl flex items-center justify-center mx-auto mb-6"
+              className="w-28 h-28 bg-[var(--bone-2)] border-2 border-dashed border-[var(--line)] rounded-3xl flex items-center justify-center mx-auto mb-6"
             >
               <ShoppingCart className="w-12 h-12 text-[var(--border-hover)]" />
             </motion.div>
-            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Tu carrito está vacío</h2>
+            <h2 className="text-2xl font-bold text-[var(--ink)] mb-2">Tu carrito está vacío</h2>
             <p className="text-[var(--text-muted)] mb-8">Descubre miles de productos en nuestras tiendas</p>
-            <Link href="/" className="inline-flex items-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold px-8 py-4 rounded-xl transition-all hover:shadow-lg hover:shadow-orange-200/50 text-base">
+            <Link href="/" className="inline-flex items-center gap-2 bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-bold px-8 py-4 rounded-xl transition-all hover:shadow-[var(--shadow-md)] text-base">
               <ShoppingBag className="w-5 h-5" /> Explorar tiendas
             </Link>
           </motion.div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
 
+            {/* Barra de envío gratis (P1.2) — ocupa ambas columnas */}
+            <div className="lg:col-span-2">
+              <FreeShippingProgress subtotal={sub} />
+            </div>
+
             {/* Lista de items */}
             <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-3">
               {/* Encabezado */}
-              <motion.div variants={item} className="bg-white border border-[var(--border)] rounded-xl overflow-hidden shadow-sm">
-                <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-between">
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">Productos ({cartCount})</p>
+              <motion.div variants={item} className="bg-[var(--bone-2)] border border-[var(--line)] rounded-xl overflow-hidden shadow-[var(--shadow-sm)]">
+                <div className="px-5 py-3 border-b border-[var(--line)] bg-[var(--bone-3)] flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[var(--ink)]">Productos ({cartCount})</p>
                   <button
                     onClick={() => { items.forEach(i => removeItem(i.productId)); toast.success('Carrito vaciado'); }}
                     className="text-xs text-red-500 hover:text-red-700 hover:underline transition-colors flex items-center gap-1"
@@ -109,10 +145,10 @@ export default function CartPage() {
                         </div>
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-[var(--text-primary)] line-clamp-2 mb-0.5">{it.title}</p>
+                          <p className="text-sm font-semibold text-[var(--ink)] line-clamp-2 mb-0.5">{it.title}</p>
                           <p className="text-xs text-[var(--text-muted)] mb-3">SKU: {it.sku}</p>
                           <div className="flex items-center gap-3 flex-wrap">
-                            <div className="flex items-center border border-[var(--border)] rounded-lg overflow-hidden bg-white shadow-sm">
+                            <div className="flex items-center border border-[var(--line)] rounded-full overflow-hidden bg-[var(--bone-2)] shadow-[var(--shadow-sm)]">
                               <button onClick={() => updateQuantity(it.productId, it.quantity - 1)}
                                 className="w-8 h-8 flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors border-r border-[var(--border)]">
                                 <Minus className="w-3.5 h-3.5" />
@@ -139,7 +175,7 @@ export default function CartPage() {
                         {/* Precio */}
                         <div className="text-right shrink-0">
                           <motion.p key={`${it.productId}-${it.quantity}`} initial={{ scale: 1.1 }} animate={{ scale: 1 }}
-                            className="text-base font-black text-[var(--text-primary)]">{fmt(it.price * it.quantity)}</motion.p>
+                            className="text-base font-black text-[var(--ink)]">{fmt(it.price * it.quantity)}</motion.p>
                           {it.quantity > 1 && <p className="text-xs text-[var(--text-muted)]">{fmt(it.price)} c/u</p>}
                         </div>
                       </div>
@@ -151,9 +187,9 @@ export default function CartPage() {
               {/* Garantías */}
               <motion.div variants={item} className="grid grid-cols-3 gap-3">
                 {[
-                  { icon: Shield, text: 'Compra segura', sub: 'SSL 256-bit', color: 'text-green-600 bg-green-50 border-green-200' },
-                  { icon: Truck,  text: 'Envíos',        sub: 'A todo Colombia', color: 'text-blue-600 bg-blue-50 border-blue-200' },
-                  { icon: BadgeCheck, text: 'Vendedores', sub: 'Verificados', color: 'text-orange-600 bg-orange-50 border-orange-200' },
+                  { icon: Shield, text: 'Compra segura', sub: 'SSL 256-bit', color: 'text-[var(--selva)] bg-[var(--selva-soft)] border-[var(--selva)]/30' },
+                  { icon: Truck,  text: 'Envíos',        sub: 'A todo Colombia', color: 'text-[var(--primary-2)] bg-[var(--accent-subtle)] border-[var(--accent-border)]' },
+                  { icon: BadgeCheck, text: 'Vendedores', sub: 'Verificados', color: 'text-[var(--selva)] bg-[var(--selva-soft)] border-[var(--selva)]/30' },
                 ].map(({ icon: Icon, text, sub, color }) => (
                   <div key={text} className={`flex items-center gap-2 border rounded-xl p-3 text-xs ${color}`}>
                     <Icon className="w-4 h-4 shrink-0" />
@@ -167,19 +203,19 @@ export default function CartPage() {
             <div className="space-y-4">
               {/* Cupón */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                className="bg-white border border-[var(--border)] rounded-xl p-4 shadow-sm">
-                <p className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
+                className="bg-[var(--bone-2)] border border-[var(--line)] rounded-xl p-4 shadow-[var(--shadow-sm)]">
+                <p className="text-sm font-bold text-[var(--ink)] mb-3 flex items-center gap-2">
                   <Ticket className="w-4 h-4 text-[var(--accent)]" /> Cupón de descuento
                 </p>
                 {coupon ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
-                    <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
+                    className="flex items-center gap-2 bg-[var(--selva-soft)] border border-[var(--selva)]/30 rounded-xl px-3 py-2.5">
+                    <CheckCircle className="w-4 h-4 text-[var(--selva)] shrink-0" />
                     <div className="flex-1">
-                      <p className="text-xs font-black text-green-800">{coupon} — −{discount}%</p>
-                      <p className="text-xs text-green-600">Ahorro: {fmt(disc)}</p>
+                      <p className="text-xs font-black text-[var(--selva)]">{coupon} — −{discount}%</p>
+                      <p className="text-xs text-[var(--selva)]">Ahorro: {fmt(disc)}</p>
                     </div>
-                    <button onClick={removeCoupon} className="text-green-600 hover:text-green-800 transition-colors"><X className="w-4 h-4" /></button>
+                    <button onClick={removeCoupon} className="text-[var(--selva)] hover:opacity-70 transition-opacity"><X className="w-4 h-4" /></button>
                   </motion.div>
                 ) : (
                   <>
@@ -189,10 +225,10 @@ export default function CartPage() {
                         onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponError(''); }}
                         onKeyDown={e => e.key === 'Enter' && handleCoupon()}
                         placeholder="SHOPPER10"
-                        className="flex-1 px-3 py-2.5 text-sm border border-[var(--border)] rounded-lg bg-[var(--surface-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all uppercase font-mono tracking-wider placeholder:normal-case placeholder:font-sans"
+                        className="flex-1 px-3 py-2.5 text-sm border border-[var(--line)] rounded-lg bg-[var(--bone-3)] outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--accent-subtle)] transition-all uppercase font-mono tracking-wider placeholder:normal-case placeholder:font-sans"
                       />
                       <button onClick={handleCoupon} disabled={couponLoading || !couponInput.trim()}
-                        className="px-4 py-2.5 bg-[var(--nav-bg)] text-white text-xs font-bold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all">
+                        className="px-4 py-2.5 bg-[var(--ink)] text-[var(--bone-2)] text-xs font-bold rounded-full hover:bg-[var(--primary-2)] disabled:opacity-40 transition-all">
                         {couponLoading ? '...' : 'Aplicar'}
                       </button>
                     </div>
@@ -204,42 +240,22 @@ export default function CartPage() {
 
               {/* Totales */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                className="bg-white border border-[var(--border)] rounded-xl p-5 shadow-sm">
-                <h2 className="font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                className="bg-[var(--bone-2)] border border-[var(--line)] rounded-xl p-5 shadow-[var(--shadow-sm)]">
+                <h2 className="font-bold text-[var(--ink)] mb-4 flex items-center gap-2">
                   <Tag className="w-4 h-4 text-[var(--accent)]" /> Resumen del pedido
                 </h2>
-                <div className="space-y-2.5 text-sm">
-                  <div className="flex justify-between text-[var(--text-secondary)]">
-                    <span>Subtotal ({cartCount} art.)</span><span>{fmt(sub)}</span>
-                  </div>
-                  {disc > 0 && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                      className="flex justify-between text-green-600 font-semibold">
-                      <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" />Descuento ({discount}%)</span>
-                      <span>−{fmt(disc)}</span>
-                    </motion.div>
-                  )}
-                  <div className="flex justify-between text-[var(--text-secondary)]">
-                    <span className="flex items-center gap-1">IVA (19%) <span className="text-[10px] text-[var(--text-muted)] bg-[var(--surface-2)] px-1.5 py-0.5 rounded-full ml-1">Colombia</span></span>
-                    <span>{fmt(iva)}</span>
-                  </div>
-                  <div className="flex justify-between text-[var(--text-secondary)]">
-                    <span>Envío</span>
-                    <span className="text-[var(--success)] font-semibold">A calcular</span>
-                  </div>
-                  <div className="h-px bg-[var(--border)] !my-3" />
-                  <div className="flex justify-between font-black text-lg text-[var(--text-primary)]">
-                    <span>Total</span>
-                    <motion.span key={cartTotal} initial={{ scale: 1.05, color: '#FF9900' }} animate={{ scale: 1, color: '#0F1111' }} transition={{ duration: 0.3 }}>
-                      {fmt(cartTotal)}
-                    </motion.span>
-                  </div>
-                  <p className="text-[10px] text-[var(--text-muted)]">* IVA del 19% incluido según legislación colombiana</p>
-                </div>
+                <OrderSummary
+                  itemCount={cartCount}
+                  subtotal={sub}
+                  discountPct={discount}
+                  discountAmount={disc}
+                  ivaIncluded={iva}
+                  shipping="pending"
+                />
 
                 <div className="mt-5 space-y-2">
                   <Link href="/checkout"
-                    className="flex items-center justify-center gap-2 w-full bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-black py-4 rounded-xl transition-all hover:shadow-lg hover:shadow-orange-200/50 text-base">
+                    className="flex items-center justify-center gap-2 w-full bg-[var(--btn-cart-bg)] hover:bg-[var(--btn-cart-hover)] text-[var(--btn-cart-text)] font-black py-4 rounded-xl transition-all hover:shadow-[var(--shadow-md)] text-base">
                     <Lock className="w-4 h-4" /> Pagar ahora <ArrowRight className="w-4 h-4" />
                   </Link>
                   <Link href="/"

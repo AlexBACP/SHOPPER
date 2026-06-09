@@ -5,14 +5,23 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
+import { IsString, IsOptional, IsInt, Min, Max } from 'class-validator';
 import { ReviewsService } from './reviews.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 class CrearResenaDto {
+  @IsString()
   product_id: string;
-  rating:     number;
-  comment?:   string;
+
+  @IsInt() @Min(1) @Max(5)
+  rating: number;
+
+  @IsOptional() @IsString()
+  comment?: string;
+
+  @IsOptional() @IsString()
+  image?: string;
 }
 
 @Controller('reviews')
@@ -27,7 +36,7 @@ export class ReviewsController {
     if (!dto.rating || dto.rating < 1 || dto.rating > 5) {
       throw new BadRequestException('rating debe ser entre 1 y 5');
     }
-    return this.reviewsService.crear(user.id, dto.product_id, dto.rating, dto.comment);
+    return this.reviewsService.crear(user.id, dto.product_id, dto.rating, dto.comment, dto.image);
   }
 
   /** Listar reseñas de un producto — público */
@@ -35,6 +44,13 @@ export class ReviewsController {
   @Get('product/:productId')
   obtener(@Param('productId') productId: string) {
     return this.reviewsService.obtenerPorProducto(productId);
+  }
+
+  /** Reputación agregada de una tienda (promedio + total) — público */
+  @SkipThrottle()
+  @Get('store/:storeId/summary')
+  resumenTienda(@Param('storeId') storeId: string) {
+    return this.reviewsService.resumenTienda(storeId);
   }
 
   /** Resumen (promedio + total) de un producto — público */

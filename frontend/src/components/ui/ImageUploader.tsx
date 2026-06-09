@@ -26,12 +26,13 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, Loader2, ImageIcon, Plus } from 'lucide-react';
 import api from '@/lib/api';
+import { getApiMessage } from '@/lib/errors';
 import { imageOpt, blurDataUrl } from '@/lib/cloudinary';
 
 // ── Tipos ────────────────────────────────────────────────
 
 interface SingleProps {
-  folder: 'stores' | 'products';
+  folder: 'stores' | 'products' | 'reviews';
   multiple?: false;
   value?: string;
   onChange: (url: string) => void;
@@ -39,7 +40,7 @@ interface SingleProps {
 }
 
 interface MultiProps {
-  folder: 'stores' | 'products';
+  folder: 'stores' | 'products' | 'reviews';
   multiple: true;
   value?: string[];
   onChange: (urls: string[]) => void;
@@ -96,8 +97,8 @@ export default function ImageUploader(props: Props) {
           const url = await uploadFile(files[0], folder);
           props.onChange(url);
         }
-      } catch (err: any) {
-        setError(err?.response?.data?.message ?? 'Error al subir la imagen');
+      } catch (err: unknown) {
+        setError(getApiMessage(err, 'No pudimos subir la imagen. Verifica el archivo e intenta de nuevo.'));
       } finally {
         setUploading(false);
         if (inputRef.current) inputRef.current.value = '';

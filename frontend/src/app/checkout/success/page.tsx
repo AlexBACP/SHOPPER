@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle2, XCircle, Loader2, ShoppingBag, ArrowRight, Home } from 'lucide-react';
@@ -15,12 +15,13 @@ interface DatosOrden {
   id:     string;
   total:  number;
   status: string;
+  payment_method?: string;
 }
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
-export default function PaginaExitoCheckout() {
+function ContenidoExitoCheckout() {
   const params    = useSearchParams();
   const clearCart = useCartStore((s) => s.clearCart);
 
@@ -63,6 +64,14 @@ export default function PaginaExitoCheckout() {
     const t = setTimeout(consultarOrden, 1200);
     return () => clearTimeout(t);
   }, [params, clearCart]);
+
+  // ── Pago contra entrega + coordinar por WhatsApp ──
+  const esContraEntrega = params.get('method') === 'cod' || orden?.payment_method === 'cod';
+  const waPedido = orden
+    ? `https://wa.me/?text=${encodeURIComponent(
+        `¡Hola! Acabo de hacer un pedido en Shopper.\n\n*Pedido:* #${orden.id.slice(0, 8).toUpperCase()}\n*Total:* ${fmt(orden.total)}\n*Pago:* ${esContraEntrega ? 'Contra entrega (efectivo al recibir)' : 'Pagado en línea'}\n\n¿Me confirmas la entrega? ¡Gracias!`,
+      )}`
+    : '';
 
   /* ── Pantalla de carga ── */
   if (estado === 'cargando') {
@@ -127,7 +136,7 @@ export default function PaginaExitoCheckout() {
       {/* Blobs decorativos */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-[var(--success)]/[0.04] blur-[120px] animar-float-suave" />
-        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-amber-500/[0.04] blur-[100px] animar-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-[var(--primary)]/[0.04] blur-[100px] animar-float" style={{ animationDelay: '2s' }} />
       </div>
 
       <motion.div
@@ -141,7 +150,7 @@ export default function PaginaExitoCheckout() {
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 0.15, type: 'spring', stiffness: 200, damping: 18 }}
-          className="w-24 h-24 bg-[var(--success)]/10 border border-[var(--success)]/25 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(34,197,94,0.15)]"
+          className="w-24 h-24 bg-[var(--success)]/10 border border-[var(--success)]/25 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(47,93,79,0.15)]"
         >
           <CheckCircle2 className="w-12 h-12 text-[var(--success)]" />
         </motion.div>
@@ -153,12 +162,14 @@ export default function PaginaExitoCheckout() {
           transition={{ delay: 0.3, duration: 0.4 }}
         >
           <h1 className="text-2xl font-bold mb-2">
-            {estado === 'aprobado' ? '¡Pago exitoso!' : 'Pago en proceso'}
+            {esContraEntrega ? '¡Pedido confirmado!' : estado === 'aprobado' ? '¡Pago exitoso!' : 'Pago en proceso'}
           </h1>
           <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
-            {estado === 'aprobado'
-              ? 'Tu orden fue confirmada. El vendedor recibirá el pedido en breve.'
-              : 'Tu pago está siendo procesado. Te notificaremos cuando sea confirmado.'}
+            {esContraEntrega
+              ? 'Pagarás en efectivo al recibir tu pedido. El vendedor coordinará la entrega contigo — confírmasela por WhatsApp'
+              : estado === 'aprobado'
+                ? 'Tu orden fue confirmada. El vendedor recibirá el pedido en breve.'
+                : 'Tu pago está siendo procesado. Te notificaremos cuando sea confirmado.'}
           </p>
 
           {orden && (
@@ -185,6 +196,13 @@ export default function PaginaExitoCheckout() {
           transition={{ delay: 0.45 }}
           className="flex flex-col gap-3 w-full"
         >
+          {orden && (
+            <a href={waPedido} target="_blank" rel="noopener noreferrer"
+              className="w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-3.5 rounded-xl text-center transition-all flex items-center justify-center gap-2 shadow-md">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.559 4.118 1.535 5.845L.057 23.99l6.345-1.663A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.956 0-3.77-.592-5.27-1.607l-.378-.226-3.916 1.026 1.043-3.82-.247-.393A9.961 9.961 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+              Coordinar entrega por WhatsApp
+            </a>
+          )}
           <Link href="/orders"
             className="btn-shimmer w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-bold py-3.5 rounded-xl text-center transition-all flex items-center justify-center gap-2">
             <ShoppingBag className="w-4 h-4" />
@@ -199,5 +217,13 @@ export default function PaginaExitoCheckout() {
         </motion.div>
       </motion.div>
     </div>
+  );
+}
+
+export default function PaginaExitoCheckout() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg)] flex items-center justify-center"><Loader2 className="w-10 h-10 text-[var(--accent-bright)] animate-spin" /></div>}>
+      <ContenidoExitoCheckout />
+    </Suspense>
   );
 }

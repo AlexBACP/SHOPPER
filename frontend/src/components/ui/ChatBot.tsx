@@ -3,22 +3,29 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Send, Loader2, RotateCcw,
-  ShoppingCart, Store, Package, HelpCircle,
-  ChevronRight, Minimize2, Bot, User, AlertTriangle, Clock,
+  X, Send, Loader2, RotateCcw, ShoppingCart, Store, Package, HelpCircle, ChevronRight, Minimize2, Bot, User, Clock, Palette, MessageCircle, Sparkles,
 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
 import { useRateLimit } from '@/hooks/useRateLimit';
+import { useAuthStore } from '@/store/auth.store';
 
 interface Message { id: string; role: 'user' | 'assistant'; content: string; ts: number; }
 
-const QUICK_QUESTIONS = [
-  { icon: ShoppingCart, q: '¿Cómo funciona el carrito de compras?'   },
-  { icon: Store,        q: '¿Cómo creo mi tienda en Shopper?'        },
-  { icon: Package,      q: '¿Cómo agrego productos a mi tienda?'     },
-  { icon: HelpCircle,   q: '¿Cuáles son los métodos de pago?'        },
-  { icon: Package,      q: '¿Cómo rastreo mi pedido?'               },
-  { icon: Store,        q: '¿Cuánto cuesta vender en Shopper?'       },
+// Preguntas rápidas según el rol del usuario
+const QUESTIONS_BUYER = [
+  { icon: ShoppingCart,  q: '¿Cómo funciona el carrito de compras?'    },
+  { icon: HelpCircle,    q: '¿Cuáles son los métodos de pago?'         },
+  { icon: MessageCircle, q: '¿Cómo contacto a un vendedor?'            },
+  { icon: Package,       q: '¿Cómo rastreo mi pedido?'                 },
+  { icon: Store,         q: 'Quiero vender, ¿cómo abro mi tienda?'     },
+];
+const QUESTIONS_SELLER = [
+  { icon: Palette,       q: '¿Cómo personalizo mi tienda (color, banner)?' },
+  { icon: MessageCircle, q: '¿Cómo activo el contacto por WhatsApp?'        },
+  { icon: Package,       q: '¿Cómo agrego productos a mi tienda?'           },
+  { icon: Sparkles,      q: 'Dame consejos para vender más'                 },
+  { icon: Store,         q: '¿Cómo publico mi tienda?'                      },
 ];
 
 function escapeHtml(str: string) {
@@ -48,6 +55,11 @@ export default function ChatBot() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
+  const pathname = usePathname();
+  const role = useAuthStore(s => s.user?.role);
+  const esVendedor = role === 'owner' || role === 'admin' || role === 'super_admin';
+  const quickQuestions = esVendedor ? QUESTIONS_SELLER : QUESTIONS_BUYER;
+
   // Rate limit: máx 15 mensajes por minuto
   const { canRequest, getRemainingTime, getRequestsLeft } = useRateLimit({
     maxRequests: 15,
@@ -56,7 +68,9 @@ export default function ChatBot() {
 
   const greeting: Message = {
     id: 'greeting', role: 'assistant', ts: Date.now(),
-    content: '¡Hola! 👋 Soy **Shoppy**, el asistente virtual de Shopper.\n\n¿En qué puedo ayudarte hoy?',
+    content: esVendedor
+      ? '¡Hola! Soy **Shoppy**. Puedo ayudarte a **personalizar tu tienda**, activar el **contacto por WhatsApp** y darte **consejos para vender más**.\n\n¿Con qué empezamos?'
+      : '¡Hola! Soy **Shoppy**, el asistente virtual de Shopper.\n\n¿En qué puedo ayudarte hoy?',
   };
 
   useEffect(() => {
@@ -94,16 +108,16 @@ export default function ChatBot() {
         .slice(-10) // últimos 10 mensajes para no sobrecargar el contexto
         .map(m => ({ role: m.role, content: m.content }));
 
-      const res = await api.post('/chat', { messages: history });
+      const res = await api.post('/chat', { messages: history, role, page: pathname });
       const reply = res.data?.reply ?? res.data?.message ?? 'Lo siento, no pude procesar tu mensaje.';
       setMsgs(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: reply, ts: Date.now() }]);
     } catch {
       setMsgs(prev => [...prev, {
         id: Date.now().toString(), role: 'assistant', ts: Date.now(),
-        content: 'Ups, tuve un problema técnico. Intenta de nuevo en un momento 🙏',
+        content: 'Ups, tuve un problema técnico. Intenta de nuevo en un momento',
       }]);
     } finally { setLoading(false); }
-  }, [input, loading, msgs, canRequest, getRemainingTime]);
+  }, [input, loading, msgs, canRequest, getRemainingTime, role, pathname]);
 
   const reset = () => { setMsgs([greeting]); setCooldownMsg(''); };
 
@@ -120,11 +134,11 @@ export default function ChatBot() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: 8 }}
               transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="bg-white border border-[var(--border)] rounded-2xl rounded-br-sm px-4 py-2.5 shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+              className="bg-[var(--bone-2)] border border-[var(--line)] rounded-2xl rounded-br-sm px-4 py-2.5 shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
               onClick={() => setOpen(true)}
             >
-              <p className="text-xs font-bold text-[var(--text-primary)]">¿Necesitas ayuda? 💬</p>
-              <p className="text-xs text-[var(--text-muted)]">Shoppy está aquí</p>
+              <p className="text-xs font-bold text-[var(--ink)]">¿Necesitas ayuda?</p>
+              <p className="text-xs text-[var(--ink-soft)]">Shoppy está aquí</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -155,12 +169,12 @@ export default function ChatBot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-            className="fixed bottom-24 right-6 z-40 w-[360px] max-w-[calc(100vw-24px)] bg-white border border-[var(--border)] rounded-2xl shadow-2xl shadow-slate-900/20 flex flex-col overflow-hidden"
+            className="fixed bottom-24 right-6 z-40 w-[360px] max-w-[calc(100vw-24px)] bg-[var(--bone-2)] border border-[var(--line)] rounded-2xl shadow-2xl shadow-black/20 flex flex-col overflow-hidden"
             style={{ height: '520px' }}
           >
             {/* Header */}
             <div className="bg-[var(--nav-bg)] px-4 py-3 flex items-center gap-3 shrink-0">
-              <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-md">
+              <div className="w-9 h-9 bg-[var(--primary)] rounded-xl flex items-center justify-center shadow-md">
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
@@ -168,7 +182,7 @@ export default function ChatBot() {
                 <p className="text-xs text-white/50 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block" /> Asistente virtual
                   {requestsLeft < 5 && (
-                    <span className="ml-1 text-yellow-400">· {requestsLeft} msgs restantes</span>
+                    <span className="ml-1 text-[var(--accent-bright)]">· {requestsLeft} msgs restantes</span>
                   )}
                 </p>
               </div>
@@ -190,13 +204,13 @@ export default function ChatBot() {
                     transition={{ type: 'spring', stiffness: 400, damping: 28 }}
                     className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                   >
-                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'assistant' ? 'bg-gradient-to-br from-orange-500 to-amber-600' : 'bg-[var(--nav-bg)]'}`}>
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'assistant' ? 'bg-[var(--primary)]' : 'bg-[var(--nav-bg)]'}`}>
                       {msg.role === 'assistant' ? <Bot className="w-3.5 h-3.5 text-white" /> : <User className="w-3.5 h-3.5 text-white" />}
                     </div>
                     <div
                       className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
                         msg.role === 'assistant'
-                          ? 'bg-white border border-[var(--border)] text-[var(--text-primary)] rounded-tl-sm'
+                          ? 'bg-[var(--bone-2)] border border-[var(--line)] text-[var(--ink)] rounded-tl-sm'
                           : 'bg-[var(--nav-bg)] text-white rounded-tr-sm'
                       }`}
                       dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
@@ -208,10 +222,10 @@ export default function ChatBot() {
               {/* Typing indicator */}
               {loading && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5">
-                  <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="w-7 h-7 rounded-xl bg-[var(--primary)] flex items-center justify-center shrink-0 shadow-sm">
                     <Bot className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <div className="bg-white border border-[var(--border)] rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-1">
+                  <div className="bg-[var(--bone-2)] border border-[var(--line)] rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-1">
                     {[0, 1, 2].map(i => (
                       <motion.div key={i} className="w-1.5 h-1.5 bg-[var(--accent)] rounded-full"
                         animate={{ y: [0, -4, 0] }}
@@ -224,10 +238,10 @@ export default function ChatBot() {
               {/* Preguntas rápidas en estado inicial */}
               {msgs.length === 1 && !loading && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="space-y-1.5 mt-2">
-                  <p className="text-[10px] text-[var(--text-muted)] text-center font-semibold uppercase tracking-wider">Preguntas frecuentes</p>
-                  {QUICK_QUESTIONS.map(({ icon: Icon, q }) => (
+                  <p className="text-[10px] text-[var(--text-muted)] text-center font-semibold uppercase tracking-wider">{esVendedor ? 'Para tu tienda' : 'Preguntas frecuentes'}</p>
+                  {quickQuestions.map(({ icon: Icon, q }) => (
                     <button key={q} onClick={() => send(q)}
-                      className="w-full flex items-center gap-2.5 text-left bg-white hover:bg-orange-50 border border-[var(--border)] hover:border-[var(--accent-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--text-secondary)] hover:text-[var(--accent-dark)] transition-all group">
+                      className="w-full flex items-center gap-2.5 text-left bg-[var(--bone-2)] hover:bg-[var(--accent-subtle)] border border-[var(--line)] hover:border-[var(--accent-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--ink-soft)] hover:text-[var(--primary-2)] transition-all group">
                       <Icon className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
                       {q}
                       <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -240,12 +254,12 @@ export default function ChatBot() {
             </div>
 
             {/* Input */}
-            <div className="border-t border-[var(--border)] px-3 py-3 bg-white shrink-0">
+            <div className="border-t border-[var(--line)] px-3 py-3 bg-[var(--bone-2)] shrink-0">
               {/* Cooldown warning */}
               <AnimatePresence>
                 {cooldownMsg && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-1.5 text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5 mb-2">
+                    className="flex items-center gap-1.5 text-xs text-[var(--primary-2)] bg-[var(--accent-subtle)] border border-[var(--accent-border)] rounded-lg px-3 py-1.5 mb-2">
                     <Clock className="w-3 h-3 shrink-0" />
                     {cooldownMsg}
                   </motion.div>
@@ -261,16 +275,16 @@ export default function ChatBot() {
                   placeholder={cooldownMsg ? 'Espera un momento...' : 'Escribe tu pregunta...'}
                   disabled={loading || !!cooldownMsg}
                   maxLength={500}
-                  className="flex-1 px-3.5 py-2.5 text-sm border border-[var(--border)] rounded-xl bg-[var(--surface-2)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-orange-100 transition-all placeholder-[var(--text-muted)] disabled:opacity-50"
+                  className="flex-1 px-3.5 py-2.5 text-sm border border-[var(--line)] rounded-xl bg-[var(--bone-3)] outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--accent-subtle)] transition-all placeholder-[var(--ink-soft)] disabled:opacity-50"
                 />
                 <motion.button onClick={() => send()} disabled={loading || !input.trim() || !!cooldownMsg} whileTap={{ scale: 0.9 }}
-                  className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 disabled:opacity-40 rounded-xl flex items-center justify-center transition-all shadow-md shadow-orange-200/50">
+                  className="w-10 h-10 bg-[var(--primary)] hover:bg-[var(--primary-2)] disabled:opacity-40 rounded-xl flex items-center justify-center transition-all shadow-[var(--shadow-sm)]">
                   {loading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
                 </motion.button>
               </div>
               <p className="text-[10px] text-[var(--text-muted)] text-center mt-1.5 flex items-center justify-center gap-1">
                 <span>Shoppy IA · Shopper Colombia</span>
-                {requestsLeft <= 10 && <span className="text-orange-500">· {requestsLeft}/15 msgs</span>}
+                {requestsLeft <= 10 && <span className="text-[var(--primary)]">· {requestsLeft}/15 msgs</span>}
               </p>
             </div>
           </motion.div>
