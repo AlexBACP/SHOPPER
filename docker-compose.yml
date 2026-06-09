@@ -1,11 +1,12 @@
 # ─────────────────────────────────────────────────────────────
-#  SHOPPER · docker-compose (desarrollo)
+#  SHOPPER · docker-compose (base)
 #  Levanta: backend (NestJS) + frontend (Next.js) + Postgres + Mongo + Redis
 #
-#  Uso:
-#    docker compose up --build
-#    docker compose down              # parar
-#    docker compose down -v           # parar + borrar datos
+#  Este base está pensado para PRODUCCIÓN (target prod, sin bind mounts).
+#  En DESARROLLO, docker-compose.override.yml se aplica solo y reactiva
+#  el hot-reload:
+#    docker compose up --build       # DEV  (base + override automático)
+#    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d  # PROD
 # ─────────────────────────────────────────────────────────────
 
 services:
@@ -62,7 +63,7 @@ services:
   backend:
     build:
       context: ./backend
-      target: dev
+      target: prod
     container_name: shopper_backend
     restart: unless-stopped
     env_file:
@@ -75,12 +76,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       FRONTEND_URL: http://localhost:3000
-      NODE_ENV: development
+      NODE_ENV: production
     ports:
       - "127.0.0.1:${BACKEND_HOST_PORT:-3001}:3001"
-    volumes:
-      - ./backend:/app
-      - backend_node_modules:/app/node_modules
+    # Sin bind mounts aquí: los montajes de desarrollo viven en
+    # docker-compose.override.yml (se aplican solo con `docker compose up`).
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,18 +93,15 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: dev
+      target: prod
     container_name: shopper_frontend
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
-      NODE_ENV: development
+      NODE_ENV: production
     ports:
       - "127.0.0.1:${FRONTEND_HOST_PORT:-3000}:3000"
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-      - frontend_next_cache:/app/.next
+    # Sin bind mounts aquí (ver docker-compose.override.yml para dev)
     depends_on:
       - backend
 

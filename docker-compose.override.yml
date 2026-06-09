@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────
+#  SHOPPER · docker-compose.override.yml (DESARROLLO)
+#  Docker Compose lo aplica AUTOMÁTICAMENTE solo con:
+#       docker compose up        (modo dev, hot reload)
+#
+#  En PRODUCCIÓN NO se usa, porque ahí se invoca con archivos explícitos:
+#       docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+#  Aquí viven los bind mounts y el target "dev" que NO deben estar en prod.
+# ─────────────────────────────────────────────────────────────
+
+services:
+  backend:
+    build:
+      target: dev
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+    command: ["npm", "run", "start:dev"]
+
+  frontend:
+    build:
+      target: dev
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next_cache:/app/.next
+    command: ["npm", "run", "dev"]
