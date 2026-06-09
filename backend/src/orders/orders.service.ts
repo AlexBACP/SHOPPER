@@ -95,7 +95,7 @@ export class OrdersService {
             shipping_name, shipping_phone,
             shipping_address, shipping_city, shipping_dept,
             shipping_notes, coupon_code, discount_pct, payment_method)
-         VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *`,
         [
           buyerId, total, shippingCost,
