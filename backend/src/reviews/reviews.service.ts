@@ -52,6 +52,22 @@ export class ReviewsService {
     const product = await this.products.findOne({ _id: objectId, is_active: true });
     if (!product) throw new NotFoundException('Producto no encontrado o inactivo');
 
+    // Verificar que el usuario REALMENTE compró el producto (reseñas verificadas).
+    // Solo cuentan órdenes pagadas/en curso (no 'pending' ni 'cancelled'/'refunded').
+    const { rows: compra } = await this.pool.query(
+      `SELECT 1
+         FROM orders o
+         JOIN order_items oi ON oi.order_id = o.id
+        WHERE o.buyer_id = $1
+          AND oi.product_id = $2
+          AND o.status IN ('confirmed','processing','shipped','delivered')
+        LIMIT 1`,
+      [userId, productId],
+    );
+    if (compra.length === 0) {
+      throw new ForbiddenException('Solo puedes reseñar productos que has comprado');
+    }
+
     // Evitar reseña duplicada
     const { rows: existing } = await this.pool.query(
       'SELECT id FROM reviews WHERE product_id = $1 AND user_id = $2',
