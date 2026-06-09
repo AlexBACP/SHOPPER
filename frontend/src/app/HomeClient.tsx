@@ -137,7 +137,6 @@ function Hero({ statsReales, tiendas, productos }: {
   const yMid  = useSpring(useTransform(scrollYProgress, [0, 1], [0, -130]), { stiffness: 60, damping: 25 });
   const yFast = useSpring(useTransform(scrollYProgress, [0, 1], [0, -180]), { stiffness: 60, damping: 25 });
   const rotMid = useTransform(scrollYProgress, [0, 1], [3, 7]);
-  const stickerY = useSpring(useTransform(scrollYProgress, [0, 1], [0, -60]), { stiffness: 50, damping: 20 });
 
   // Fallbacks por keyword en título → categoría → default. Asegura coherencia visual.
   const polImg = (i: number) => {
@@ -199,11 +198,6 @@ function Hero({ statsReales, tiendas, productos }: {
         {/* Columna derecha — polaroid stack con parallax */}
         <Reveal delay={0.12}>
           <div className="ed-stack" ref={stackRef}>
-            <motion.div className="ed-sticker" aria-hidden style={{ y: stickerY }}>
-              HECHO EN
-              <span className="num">Col.</span>
-            </motion.div>
-
             <motion.div className="ed-pol p1" style={{ y: ySlow }}>
               <img src={polImg(0)} alt={feat[0]?.title ?? 'Producto destacado'} />
               <div className="ed-pol-cap">

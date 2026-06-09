@@ -1291,11 +1291,35 @@ mark.search-highlight {
 
 /* ── grilla de productos: filtros ── */
 .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 36px; }
-.chip { padding: 9px 18px; border-radius: 100px; border: 1.5px solid var(--line); background: var(--bone-2); font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer; transition: all .2s var(--ease); }
+.chip {
+  padding: 9px 18px; border-radius: 100px;
+  border: 1.5px solid var(--line); background: var(--bone-2);
+  font-size: 14px; font-weight: 500; color: var(--ink);
+  cursor: pointer; white-space: nowrap;
+  transition: transform .2s var(--ease), background .2s, border-color .2s, color .2s, box-shadow .2s;
+}
 .chip:hover { border-color: var(--ink); background: var(--bone-3); }
 .chip:active { transform: scale(.96); }
-.chip.on { background: var(--ink); color: var(--bone-2); border-color: var(--ink); }
+.chip.on {
+  background: var(--ink); color: var(--bone-2); border-color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(40, 30, 18, .16);
+}
 .chip.on:hover { background: var(--primary-2); border-color: var(--primary-2); }
+
+/* En móvil los filtros se vuelven una barra deslizable (no se amontonan en filas). */
+@media (max-width: 640px) {
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; scroll-snap-align: start; }
+}
 .pgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
 @media (max-width: 1200px) { .pgrid { grid-template-columns: repeat(4, 1fr); } }
 

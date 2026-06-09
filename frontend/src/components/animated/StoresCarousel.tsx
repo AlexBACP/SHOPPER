@@ -185,7 +185,7 @@ export default function StoresCarousel({ tiendas, productCounts }: Props) {
   }
 
   return (
-    <section className="sec wrap stcar" aria-labelledby="tiendas-heading">
+    <section className="sec wrap stcar" id="tiendas" aria-labelledby="tiendas-heading" style={{ scrollMarginTop: '88px' }}>
       <div className="ed-sec-head stcar-head">
         <h2 className="ed-sec-title" id="tiendas-heading">
           Tiendas que <span className="it">amamos</span>

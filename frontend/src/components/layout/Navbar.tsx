@@ -46,7 +46,7 @@ function obtenerEnlaces(rol: Rol) {
   const inicio = [{ href: '/', label: 'Inicio', icono: Store }];
   if (rol === 'buyer') return [
     { href: '/dashboard', label: 'Panel',      icono: LayoutDashboard },
-    { href: '/',          label: 'Tiendas',     icono: Store           },
+    { href: '/#tiendas',  label: 'Tiendas',     icono: Store           },
     { href: '/orders',    label: 'Mis pedidos', icono: ShoppingBag     },
   ];
   if (rol === 'owner') return [
