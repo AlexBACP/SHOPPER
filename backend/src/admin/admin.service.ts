@@ -1,6 +1,6 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { Pool } from 'pg';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import { POSTGRES_POOL } from '../database/postgres/postgres.provider';
 import { MONGO_CLIENT } from '../database/mongodb/mongodb.provider';
 
@@ -97,5 +97,49 @@ export class AdminService {
         created_at: r.created_at, comprador: r.comprador,
       })),
     };
+  }
+
+  // ── Moderación de productos (Mongo + nombre de tienda en PG) ──
+
+  async listProducts(q?: string) {
+    const filter: Record<string, unknown> = {};
+    if (q && q.trim()) filter.title = { $regex: q.trim(), $options: 'i' };
+    const productos = await this.mongo.db().collection('products')
+      .find(filter).sort({ created_at: -1 }).limit(100).toArray();
+
+    const storeIds = [...new Set(productos.map(p => p.store_id).filter(Boolean))];
+    const storeMap = new Map<string, { name: string; slug: string }>();
+    if (storeIds.length) {
+      const { rows } = await this.pool.query<{ id: string; name: string; slug: string }>(
+        'SELECT id, name, slug FROM stores WHERE id = ANY($1)', [storeIds],
+      );
+      rows.forEach(s => storeMap.set(s.id, { name: s.name, slug: s.slug }));
+    }
+
+    return productos.map(p => ({
+      _id:       p._id.toString(),
+      title:     p.title,
+      price:     p.price,
+      stock:     p.stock,
+      category:  p.category ?? null,
+      is_active: p.is_active !== false,
+      image:     p.images?.[0] ?? null,
+      storeName: storeMap.get(p.store_id)?.name ?? '—',
+      storeSlug: storeMap.get(p.store_id)?.slug ?? '',
+    }));
+  }
+
+  async setProductActive(id: string, isActive: boolean): Promise<void> {
+    let oid: ObjectId;
+    try { oid = new ObjectId(id); } catch { throw new BadRequestException('ID inválido'); }
+    await this.mongo.db().collection('products').updateOne(
+      { _id: oid }, { $set: { is_active: isActive, updated_at: new Date() } },
+    );
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    let oid: ObjectId;
+    try { oid = new ObjectId(id); } catch { throw new BadRequestException('ID inválido'); }
+    await this.mongo.db().collection('products').deleteOne({ _id: oid });
   }
 }

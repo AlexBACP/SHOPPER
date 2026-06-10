@@ -1,9 +1,16 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller, Get, Patch, Delete, Query, Param, Body, UseGuards, HttpCode,
+} from '@nestjs/common';
+import { IsBoolean } from 'class-validator';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
+
+class ToggleActiveDto {
+  @IsBoolean() is_active: boolean;
+}
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -15,5 +22,22 @@ export class AdminController {
   @Get('stats')
   stats() {
     return this.adminService.stats();
+  }
+
+  // ── Moderación de productos ──────────────────────────
+  @Get('products')
+  listProducts(@Query('q') q?: string) {
+    return this.adminService.listProducts(q);
+  }
+
+  @Patch('products/:id')
+  setProductActive(@Param('id') id: string, @Body() dto: ToggleActiveDto) {
+    return this.adminService.setProductActive(id, dto.is_active);
+  }
+
+  @Delete('products/:id')
+  @HttpCode(204)
+  deleteProduct(@Param('id') id: string) {
+    return this.adminService.deleteProduct(id);
   }
 }

@@ -63,6 +63,7 @@ function getNavGroups(role: Role): NavGroup[] {
         items: [
           { label: 'Dashboard',   href: '/admin',              icon: LayoutDashboard },
           { label: 'Tiendas',     href: '/admin/stores',       icon: Store },
+          { label: 'Productos',   href: '/admin/products',      icon: Package },
           { label: 'Usuarios',    href: '/admin/stores/users',  icon: Users },
           { label: 'Cupones',     href: '/admin/coupons',       icon: Ticket },
         ],
