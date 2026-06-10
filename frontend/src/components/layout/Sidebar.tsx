@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Store, Package, ShoppingBag,
   Users, BarChart3, ChevronRight,
-  ShoppingCart, User,
+  ShoppingCart, User, Ticket,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useNotificacionesStore } from '@/store/notifications.store';
@@ -64,6 +64,7 @@ function getNavGroups(role: Role): NavGroup[] {
           { label: 'Dashboard',   href: '/admin',              icon: LayoutDashboard },
           { label: 'Tiendas',     href: '/admin/stores',       icon: Store },
           { label: 'Usuarios',    href: '/admin/stores/users',  icon: Users },
+          { label: 'Cupones',     href: '/admin/coupons',       icon: Ticket },
         ],
       },
     ];
