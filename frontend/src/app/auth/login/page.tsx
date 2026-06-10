@@ -43,11 +43,26 @@ const FacebookIcon = () => (
 export default function LoginPage() {
   const setAuth = useAuthStore(s => s.setAuth);
   const [showPassword, setShowPassword] = useState(false);
+  const [twoFaToken, setTwoFaToken] = useState<string | null>(null); // si !null → paso del código 2FA
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
 
   // Anti-spam: máx 5 intentos cada 5 minutos.
   const rl = useRateLimit({ maxRequests: 5, windowMs: 5 * 60_000 });
+
+  // Guarda sesión y redirige según el rol (lo usan el login normal y el de 2FA).
+  const finishLogin = (accessToken: string, refreshToken: string) => {
+    const payload = JSON.parse(atob(accessToken.split('.')[1]));
+    setAuth({ id: payload.sub, email: payload.email, role: payload.role, name: payload.name ?? '' }, accessToken, refreshToken);
+    toast.success('¡Bienvenido de vuelta!');
+    let dest = '/';
+    if (payload.role === 'admin' || payload.role === 'super_admin') dest = '/admin/stores';
+    else if (payload.role === 'owner') dest = '/owner';
+    else if (payload.role === 'buyer') dest = '/dashboard';
+    setTimeout(() => { window.location.href = dest; }, 100);
+  };
 
   const onSubmit = async (data: LoginFormData) => {
     if (!rl.canRequest()) {
@@ -57,18 +72,27 @@ export default function LoginPage() {
     }
     try {
       const res = await api.post('/auth/login', data);
-      const { accessToken, refreshToken } = res.data;
-      const payload = JSON.parse(atob(accessToken.split('.')[1]));
-      setAuth({ id: payload.sub, email: payload.email, role: payload.role, name: payload.name ?? '' }, accessToken, refreshToken);
-      toast.success('¡Bienvenido de vuelta!');
-      await new Promise(r => setTimeout(r, 100));
-      let dest = '/';
-      if (payload.role === 'admin' || payload.role === 'super_admin') dest = '/admin/stores';
-      else if (payload.role === 'owner') dest = '/owner';
-      else if (payload.role === 'buyer') dest = '/dashboard';
-      window.location.href = dest;
+      if (res.data?.requires2fa) {       // el usuario tiene 2FA → pedir código
+        setTwoFaToken(res.data.tempToken);
+        return;
+      }
+      finishLogin(res.data.accessToken, res.data.refreshToken);
     } catch (err: unknown) {
       handleApiError(err, 'Correo o contraseña incorrectos. Verifica tus datos e intenta de nuevo.');
+    }
+  };
+
+  const submit2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.trim().length < 6) { toast.error('Ingresa el código de 6 dígitos'); return; }
+    setVerifying(true);
+    try {
+      const res = await api.post('/auth/2fa/login', { tempToken: twoFaToken, code: code.trim() });
+      finishLogin(res.data.accessToken, res.data.refreshToken);
+    } catch (err: unknown) {
+      handleApiError(err, 'Código incorrecto o expirado.');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -132,6 +156,47 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         >
+          {twoFaToken ? (
+            <>
+              <header className="eda-form-h">
+                <h1>Verificación <span className="it">en dos pasos</span></h1>
+                <p>Ingresa el código de 6 dígitos de tu app autenticadora (Google Authenticator, Authy…).</p>
+              </header>
+              <form onSubmit={submit2fa} noValidate>
+                <div className="eda-field">
+                  <label className="eda-field-label" htmlFor="totp">Código de verificación</label>
+                  <div className="eda-input-wrap">
+                    <input
+                      id="totp"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={code}
+                      onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456"
+                      className="eda-input"
+                      style={{ letterSpacing: '.35em', textAlign: 'center', fontWeight: 700 }}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <button type="submit" disabled={verifying} className="eda-cta alt">
+                  {verifying
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Verificando…</>
+                    : <>Verificar <ArrowRight className="w-4 h-4" /></>}
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => { setTwoFaToken(null); setCode(''); }}
+                className="eda-foot"
+                style={{ background: 'none', border: 0, cursor: 'pointer' }}
+              >
+                ← Volver al inicio de sesión
+              </button>
+            </>
+          ) : (
+          <>
           <header className="eda-form-h">
             <h1>Bienvenido <span className="it">de vuelta</span></h1>
             <p>Accede a tu cuenta para continuar comprando.</p>
@@ -234,6 +299,8 @@ export default function LoginPage() {
 
           {/* Suprimido para Lint: warning de unused */}
           <span hidden><ShoppingCart /></span>
+          </>
+          )}
         </motion.div>
       </main>
     </div>

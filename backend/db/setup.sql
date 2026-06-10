@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified          BOOLEAN NOT NULL DEFAULT true,  -- el registro por email pone false en código
   email_verify_token_hash TEXT,
   email_verify_expires    TIMESTAMPTZ,
+  totp_secret             TEXT,                           -- secreto 2FA (TOTP), null si no configurado
+  totp_enabled            BOOLEAN NOT NULL DEFAULT false,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

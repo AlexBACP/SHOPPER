@@ -38,6 +38,15 @@ class ResendVerificationDto {
   @IsString() email: string;
 }
 
+class Login2faDto {
+  @IsString() tempToken: string;
+  @IsString() code: string;
+}
+
+class TwoFaCodeDto {
+  @IsString() code: string;
+}
+
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 
 /** Redirige al frontend con los tokens como query params. */
@@ -68,6 +77,8 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   login(@CurrentUser() user: any) {
+    // Si el usuario tiene 2FA activo, no entregamos tokens aún: pedimos el código.
+    if (user.totp_enabled) return this.authService.issue2faChallenge(user);
     return this.authService.login(user);
   }
 
@@ -123,6 +134,47 @@ export class AuthController {
   @HttpCode(200)
   resendVerification(@Body() dto: ResendVerificationDto) {
     return this.authService.resendVerification(dto.email);
+  }
+
+  // ── 2FA (TOTP) ──────────────────────────────────────────────────
+
+  /** Paso 2 del login cuando el usuario tiene 2FA: verifica el código del autenticador. */
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post('2fa/login')
+  @HttpCode(200)
+  login2fa(@Body() dto: Login2faDto) {
+    return this.authService.login2fa(dto.tempToken, dto.code);
+  }
+
+  /** Estado actual del 2FA del usuario. */
+  @UseGuards(JwtAuthGuard)
+  @Get('2fa/status')
+  twoFaStatus(@CurrentUser() user: any) {
+    return this.authService.twoFaStatus(user.id);
+  }
+
+  /** Genera el QR para configurar el 2FA (requiere sesión). */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/setup')
+  @HttpCode(200)
+  setup2fa(@CurrentUser() user: any) {
+    return this.authService.setup2fa(user.id, user.email);
+  }
+
+  /** Activa el 2FA tras confirmar un código. */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/enable')
+  @HttpCode(200)
+  enable2fa(@CurrentUser() user: any, @Body() dto: TwoFaCodeDto) {
+    return this.authService.enable2fa(user.id, dto.code);
+  }
+
+  /** Desactiva el 2FA (requiere un código). */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/disable')
+  @HttpCode(200)
+  disable2fa(@CurrentUser() user: any, @Body() dto: TwoFaCodeDto) {
+    return this.authService.disable2fa(user.id, dto.code);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -1,6 +1,6 @@
 // src/email/email.service.ts
 import { Injectable, Logger } from '@nestjs/common';
-import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -209,15 +209,32 @@ const CONFIG_STATUS: Record<string, { emoji: string; badge: string; titulo: stri
 
 @Injectable()
 export class EmailService {
-  private readonly resend: Resend;
+  private readonly transport: nodemailer.Transporter | null;
   private readonly logger = new Logger(EmailService.name);
   private readonly from:   string;
   private readonly web:    string;
 
   constructor() {
-    this.resend = new Resend(process.env.RESEND_API_KEY);
-    this.from   = process.env.EMAIL_FROM    ?? 'Shopper <onboarding@resend.dev>';
-    this.web    = process.env.FRONTEND_URL  ?? 'http://localhost:3000';
+    this.web  = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    this.from = process.env.EMAIL_FROM ?? process.env.SMTP_USER ?? 'Shopper <no-reply@shopper.local>';
+
+    const host = process.env.SMTP_HOST;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (host && user && pass) {
+      const port = Number(process.env.SMTP_PORT) || 587;
+      this.transport = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,          // 465 = SSL directo; 587 = STARTTLS
+        auth: { user, pass },
+      });
+      this.logger.log(`SMTP configurado (${host}:${port}) — emails activos.`);
+    } else {
+      this.transport = null;
+      this.logger.warn('SMTP no configurado (faltan SMTP_HOST/SMTP_USER/SMTP_PASS) — los emails NO se enviarán.');
+    }
   }
 
   // ── 1. Bienvenida ──────────────────────────────────────────────────────────
@@ -494,15 +511,13 @@ export class EmailService {
   // ── Helper privado ────────────────────────────────────────────────────────
 
   private async send({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
+    if (!this.transport) {
+      this.logger.warn(`Email omitido (SMTP no configurado) → ${to} | ${subject}`);
+      return;
+    }
     try {
-      const { error } = await this.resend.emails.send({
-        from: this.from, to, subject, html,
-      });
-      if (error) {
-        this.logger.warn(`Email no enviado a ${to}: ${error.message}`);
-      } else {
-        this.logger.log(`Email enviado → ${to} | ${subject}`);
-      }
+      await this.transport.sendMail({ from: this.from, to, subject, html });
+      this.logger.log(`Email enviado → ${to} | ${subject}`);
     } catch (err: unknown) {
       this.logger.error(`Error enviando email a ${to}: ${(err as Error)?.message}`);
     }

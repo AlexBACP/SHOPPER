@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 import api from '@/lib/api';
 import { handleApiError } from '@/lib/errors';
+import TwoFactorSettings from '@/components/ui/TwoFactorSettings';
 
 export default function ProfilePage() {
   const { user, setAuth } = useAuthStore();
@@ -152,6 +153,9 @@ export default function ProfilePage() {
             </button>
           </div>
         </motion.div>
+
+        {/* Seguridad: 2FA */}
+        <TwoFactorSettings />
       </div>
     </div>
   );

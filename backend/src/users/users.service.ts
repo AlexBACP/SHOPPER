@@ -76,6 +76,38 @@ export class UsersService {
     return rows[0]?.email_verified === true;
   }
 
+  // ── 2FA (TOTP) ────────────────────────────────────────
+
+  /** Lee el estado 2FA del usuario. */
+  async getTotp(userId: string): Promise<{ totp_secret: string | null; totp_enabled: boolean }> {
+    const { rows } = await this.pool.query<{ totp_secret: string | null; totp_enabled: boolean }>(
+      'SELECT totp_secret, totp_enabled FROM users WHERE id = $1',
+      [userId],
+    );
+    return rows[0] ?? { totp_secret: null, totp_enabled: false };
+  }
+
+  /** Guarda el secreto TOTP (aún SIN activar — el usuario debe confirmar con un código). */
+  async setTotpSecret(userId: string, secret: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE users SET totp_secret = $1, totp_enabled = false WHERE id = $2',
+      [secret, userId],
+    );
+  }
+
+  /** Activa el 2FA (tras confirmar un código válido). */
+  async enableTotp(userId: string): Promise<void> {
+    await this.pool.query('UPDATE users SET totp_enabled = true WHERE id = $1', [userId]);
+  }
+
+  /** Desactiva el 2FA y borra el secreto. */
+  async disableTotp(userId: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE users SET totp_enabled = false, totp_secret = NULL WHERE id = $1',
+      [userId],
+    );
+  }
+
   // ── Para el panel de admin ───────────────────────────
 
   async findAll(): Promise<Omit<User, 'password_hash' | 'refresh_token_hash'>[]> {

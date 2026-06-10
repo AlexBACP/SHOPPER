@@ -26,6 +26,9 @@ const PASOS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified          BOOLEAN NOT NULL DEFAULT true`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token_hash TEXT`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires    TIMESTAMPTZ`,
+  // ── 2FA (TOTP) ──────────────────────────────────────────────────────────
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret  TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT false`,
   // ── Columnas base de orders que pueden faltar ───────────────────────────
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_name    TEXT`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address TEXT`,

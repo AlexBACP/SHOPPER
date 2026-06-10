@@ -14,6 +14,8 @@ import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
+import { authenticator } from 'otplib';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class AuthService {
@@ -143,6 +145,75 @@ export class AuthService {
       await this.sendEmailVerification(user);
     }
     return { ok: true };
+  }
+
+  // ── 2FA (TOTP) ────────────────────────────────────────────────────────
+
+  /** Estado del 2FA del usuario. */
+  async twoFaStatus(userId: string): Promise<{ enabled: boolean }> {
+    const { totp_enabled } = await this.usersService.getTotp(userId);
+    return { enabled: totp_enabled };
+  }
+
+  /** Genera un secreto TOTP, lo guarda (sin activar) y devuelve el QR para escanear. */
+  async setup2fa(userId: string, email: string): Promise<{ qr: string; secret: string }> {
+    const secret = authenticator.generateSecret();
+    await this.usersService.setTotpSecret(userId, secret);
+    const otpauth = authenticator.keyuri(email, 'Shopper', secret);
+    const qr = await QRCode.toDataURL(otpauth);
+    return { qr, secret };
+  }
+
+  /** Activa el 2FA tras confirmar un código válido del autenticador. */
+  async enable2fa(userId: string, code: string): Promise<{ ok: true }> {
+    const { totp_secret } = await this.usersService.getTotp(userId);
+    if (!totp_secret) throw new BadRequestException('Primero genera el código de configuración');
+    if (!authenticator.verify({ token: (code ?? '').trim(), secret: totp_secret })) {
+      throw new BadRequestException('Código incorrecto. Revisa tu app autenticadora.');
+    }
+    await this.usersService.enableTotp(userId);
+    return { ok: true };
+  }
+
+  /** Desactiva el 2FA (requiere un código válido). */
+  async disable2fa(userId: string, code: string): Promise<{ ok: true }> {
+    const { totp_secret, totp_enabled } = await this.usersService.getTotp(userId);
+    if (!totp_enabled || !totp_secret) return { ok: true };
+    if (!authenticator.verify({ token: (code ?? '').trim(), secret: totp_secret })) {
+      throw new BadRequestException('Código incorrecto.');
+    }
+    await this.usersService.disableTotp(userId);
+    return { ok: true };
+  }
+
+  /** Tras validar email+contraseña, si el usuario tiene 2FA emite un "reto" (token temporal). */
+  issue2faChallenge(user: { id: string }): { requires2fa: true; tempToken: string } {
+    const tempToken = this.jwtService.sign(
+      { sub: user.id, twofa: true },
+      { secret: process.env.JWT_SECRET, expiresIn: '5m' },
+    );
+    return { requires2fa: true, tempToken };
+  }
+
+  /** Segundo paso del login: verifica el token temporal + el código TOTP y emite los tokens reales. */
+  async login2fa(tempToken: string, code: string) {
+    let payload: { sub?: string; twofa?: boolean };
+    try {
+      payload = this.jwtService.verify(tempToken, { secret: process.env.JWT_SECRET });
+    } catch {
+      throw new UnauthorizedException('La sesión de verificación expiró. Inicia sesión de nuevo.');
+    }
+    if (!payload?.sub || !payload.twofa) throw new UnauthorizedException('Token inválido');
+
+    const user = await this.usersService.findById(payload.sub);
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+    const { totp_secret, totp_enabled } = await this.usersService.getTotp(user.id);
+    if (!totp_enabled || !totp_secret) throw new UnauthorizedException('2FA no está activo');
+    if (!authenticator.verify({ token: (code ?? '').trim(), secret: totp_secret })) {
+      throw new UnauthorizedException('Código de verificación incorrecto');
+    }
+    return this.login(user);
   }
 
   async refresh(userId: string, rawRefreshToken: string) {
