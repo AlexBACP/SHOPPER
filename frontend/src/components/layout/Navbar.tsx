@@ -77,7 +77,7 @@ const NAV_PUBLICO = [
   { href: '/#tiendas',       label: 'Tiendas'    },
   { href: '/#categorias',    label: 'Categorías' },
   { href: '/#productos',     label: 'Novedades'  },
-  { href: '/#vender',        label: 'Vender'     },
+  { href: '/planes',         label: 'Planes'     },
 ] as const;
 
 // ── Cinta de confianza ────────────────────────────────────────────────
@@ -178,6 +178,20 @@ export default function Navbar() {
   const [cargandoSug, setCargandoSug] = useState(false);
   const [resaltado,   setResaltado]   = useState(-1);
 
+  /** Links con ancla (/#seccion): si YA estamos en la home, hacemos scroll suave a mano.
+   *  Next.js (App Router) no siempre scrollea en anclas de la misma página. En otra
+   *  página dejamos que el <Link> navegue normal. */
+  const irAHash = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!href.startsWith('/#') || pathname !== '/') return;
+    const el = document.getElementById(href.slice(2));
+    if (el) {
+      e.preventDefault();
+      setMenuAbierto(false);
+      el.scrollIntoView({ behavior: 'smooth' });
+      window.history.replaceState(null, '', href);
+    }
+  };
+
   const refDropdown = useRef<HTMLDivElement>(null);
   const refBusqueda = useRef<HTMLDivElement>(null);
 
@@ -274,7 +288,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-7 ml-2">
             {!user
               ? NAV_PUBLICO.map(({ href, label }) => (
-                  <Link key={href} href={href}
+                  <Link key={href} href={href} onClick={(e) => irAHash(e, href)}
                     className="relative group py-1 text-[15px] font-medium text-[var(--ink)] whitespace-nowrap">
                     {label}
                     <span className="absolute left-0 -bottom-0.5 h-0.5 w-0 bg-[var(--primary)] transition-all duration-300 group-hover:w-full" />
@@ -283,7 +297,7 @@ export default function Navbar() {
               : enlaces.slice(0, 4).map(({ href, label, icono: Icono }) => {
                   const activo = pathname === href || (href !== '/' && pathname.startsWith(href));
                   return (
-                    <Link key={href} href={href}
+                    <Link key={href} href={href} onClick={(e) => irAHash(e, href)}
                       className="relative group flex items-center gap-1.5 py-1 text-[15px] font-medium text-[var(--ink)] whitespace-nowrap">
                       <Icono className="w-4 h-4" />
                       {label}
@@ -467,7 +481,7 @@ export default function Navbar() {
                       </div>
                     </div>
                     {enlaces.map(enlace => (
-                      <Link key={enlace.href} href={enlace.href}
+                      <Link key={enlace.href} href={enlace.href} onClick={(e) => irAHash(e, enlace.href)}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                           pathname === enlace.href
                             ? 'bg-[var(--accent-subtle)] text-[var(--primary-2)] font-semibold'
@@ -499,7 +513,7 @@ export default function Navbar() {
                 ) : (
                   <>
                     {NAV_PUBLICO.map(({ href, label }) => (
-                      <Link key={href} href={href}
+                      <Link key={href} href={href} onClick={(e) => irAHash(e, href)}
                         className="flex items-center px-3 py-2.5 rounded-xl text-sm text-[var(--ink)] hover:bg-[var(--bone-3)] transition-colors">
                         {label}
                       </Link>

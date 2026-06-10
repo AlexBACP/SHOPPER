@@ -80,7 +80,7 @@ const SITE_LD = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" data-scroll-behavior="smooth">
       <body className={`${hanken.variable} ${bricolage.variable} ${geistMono.variable} antialiased`}>
         <script
           type="application/ld+json"

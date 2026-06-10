@@ -24,6 +24,7 @@ export const FOOTER_LINKS = {
   ],
   vender: [
     { href: '/auth/register',   label: 'Abrir mi tienda gratis' },
+    { href: '/planes',          label: 'Planes y precios'       },
     { href: '/auth/login',      label: 'Iniciar sesión'         },
     { href: '/owner',           label: 'Panel vendedor'         },
     { href: '/owner/products',  label: 'Mis productos'          },

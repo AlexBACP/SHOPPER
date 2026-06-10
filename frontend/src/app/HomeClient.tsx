@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, MotionConfig, useScroll, useTransform, useSpring } from 'framer-motion';
 import {
   ShieldCheck, ArrowRight, ArrowUpRight, Plus, Check, Heart, Sparkles, Quote,
@@ -360,8 +360,8 @@ function BandaVendedores() {
                 <Link href="/auth/register" className="ed-btn-ink">
                   Abrir mi tienda <ArrowRight className="w-[18px] h-[18px]" />
                 </Link>
-                <Link href="/owner" className="ed-btn-ghost-light">
-                  Ya tengo cuenta <ArrowUpRight className="w-[16px] h-[16px]" />
+                <Link href="/planes" className="ed-btn-ghost-light">
+                  Ver planes <ArrowUpRight className="w-[16px] h-[16px]" />
                 </Link>
               </div>
             </div>
@@ -395,6 +395,14 @@ export interface HomeData {
 }
 
 export default function HomeClient({ tiendas, destacados, statsReales }: HomeData) {
+  // Si llegamos con un ancla (ej. /#tiendas desde otra página), hacemos scroll a ella.
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 350);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <MotionConfig reducedMotion="user">
       <ScrollProgress />
