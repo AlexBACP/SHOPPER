@@ -132,6 +132,9 @@ export class AiController {
     if (prompt.length < 3) {
       throw new HttpException('Describe tu producto en al menos unas palabras.', HttpStatus.BAD_REQUEST);
     }
+    if (prompt.length > 2000) {
+      throw new HttpException('La descripción es demasiado larga.', HttpStatus.BAD_REQUEST);
+    }
 
     try {
       const data = await callGemini(apiKey, buildPrompt(prompt), PRODUCT_SCHEMA);

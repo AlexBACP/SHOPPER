@@ -20,6 +20,12 @@ const pool = new Pool({
 });
 
 const PASOS = [
+  // ── Verificación de email ───────────────────────────────────────────────
+  // DEFAULT true → los usuarios existentes y OAuth quedan verificados (no rompe el login
+  // actual). Solo el registro NUEVO por email pone email_verified=false en código.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified          BOOLEAN NOT NULL DEFAULT true`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token_hash TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires    TIMESTAMPTZ`,
   // ── Columnas base de orders que pueden faltar ───────────────────────────
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_name    TEXT`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address TEXT`,

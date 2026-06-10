@@ -20,6 +20,24 @@ class ChangePasswordDto {
   @IsString() @MinLength(8) newPassword: string;
 }
 
+class ForgotPasswordDto {
+  @IsString() email: string;
+}
+
+class ResetPasswordDto {
+  @IsString() email: string;
+  @IsString() code: string;
+  @IsString() @MinLength(8) password: string;
+}
+
+class VerifyEmailDto {
+  @IsString() token: string;
+}
+
+class ResendVerificationDto {
+  @IsString() email: string;
+}
+
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 
 /** Redirige al frontend con los tokens como query params. */
@@ -73,6 +91,38 @@ export class AuthController {
   @HttpCode(200)
   logout(@CurrentUser() user: any) {
     return this.authService.logout(user.id);
+  }
+
+  // ── Recuperación de contraseña ──────────────────────────────────
+
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Post('forgot-password')
+  @HttpCode(200)
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post('reset-password')
+  @HttpCode(200)
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.email, dto.code, dto.password);
+  }
+
+  // ── Verificación de email ───────────────────────────────────────
+
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  @Post('verify-email')
+  @HttpCode(200)
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.token);
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Post('resend-verification')
+  @HttpCode(200)
+  resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerification(dto.email);
   }
 
   @UseGuards(JwtAuthGuard)

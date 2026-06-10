@@ -246,6 +246,59 @@ export class EmailService {
     await this.send({ to: email, subject: `Bienvenido a Shopper, ${name}`, html });
   }
 
+  // ── 1b. Código para restablecer contraseña ─────────────────────────────────
+
+  async sendPasswordReset(name: string, email: string, code: string): Promise<void> {
+    const html = `
+      <div style="${BASE}">
+        <div style="${CARD}">
+          ${LOGO}
+          <h1 style="font-size:22px;font-weight:800;margin:0 0 10px;letter-spacing:-0.02em;">
+            Restablece tu contraseña
+          </h1>
+          <p style="color:${COLOR.muted};font-size:15px;line-height:1.65;margin:0 0 20px;">
+            Hola ${name}, usa este código para crear una nueva contraseña. Vence en 15 minutos.
+          </p>
+          <div style="font-size:34px;font-weight:800;letter-spacing:.35em;text-align:center;
+                      background:#f3ede2;border-radius:12px;padding:18px 0;margin:0 0 22px;">
+            ${code}
+          </div>
+          <p style="color:${COLOR.muted};font-size:13px;line-height:1.6;margin:0;">
+            Si no solicitaste esto, ignora este correo: tu contraseña no cambiará.
+          </p>
+          ${FOOTER()}
+        </div>
+      </div>
+    `;
+    await this.send({ to: email, subject: 'Tu código para restablecer la contraseña', html });
+  }
+
+  // ── 1c. Verificación de correo (enlace) ─────────────────────────────────────
+
+  async sendVerification(name: string, email: string, token: string): Promise<void> {
+    const link = `${this.web}/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    const html = `
+      <div style="${BASE}">
+        <div style="${CARD}">
+          ${LOGO}
+          <h1 style="font-size:22px;font-weight:800;margin:0 0 10px;letter-spacing:-0.02em;">
+            Confirma tu correo
+          </h1>
+          <p style="color:${COLOR.muted};font-size:15px;line-height:1.65;margin:0 0 24px;">
+            Hola ${name}, confirma tu correo para activar tu cuenta y poder abrir tu tienda en Shopper.
+            El enlace vence en 24 horas.
+          </p>
+          <a href="${link}" style="${BTN()}">Verificar mi correo →</a>
+          <p style="color:${COLOR.muted};font-size:13px;line-height:1.6;margin:20px 0 0;">
+            Si no creaste esta cuenta, ignora este correo.
+          </p>
+          ${FOOTER()}
+        </div>
+      </div>
+    `;
+    await this.send({ to: email, subject: 'Confirma tu correo en Shopper', html });
+  }
+
   // ── 2. Confirmación de orden al comprador ──────────────────────────────────
 
   async sendOrderConfirmation(data: OrderConfirmationData): Promise<void> {

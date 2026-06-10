@@ -86,7 +86,14 @@ export class OrdersService implements OnModuleInit {
   async checkout(buyerId: string, dto: CreateOrderDto): Promise<Order & { coupon_applied: boolean }> {
     if (!dto.items?.length) throw new BadRequestException('El carrito está vacío');
 
-    // 1. Validar stock contra MongoDB (fuente de verdad del inventario)
+    // 1. Validar stock contra MongoDB Y capturar los datos REALES del producto
+    //    (precio, tienda, título). SEGURIDAD: nunca confiar en el precio ni en la
+    //    tienda que manda el cliente — un atacante podría enviar price:1. La BD
+    //    (Mongo) es la única fuente de verdad del precio.
+    const items: {
+      productId: string; storeId: string; title: string; sku: string;
+      price: number; quantity: number; image: string | null;
+    }[] = [];
     for (const item of dto.items) {
       let product: any;
       try {
@@ -97,7 +104,19 @@ export class OrdersService implements OnModuleInit {
       if (!product || !product.is_active)
         throw new BadRequestException(`El producto "${item.title}" ya no está disponible`);
       if (product.stock < item.quantity)
-        throw new BadRequestException(`Stock insuficiente para "${item.title}". Disponible: ${product.stock}`);
+        throw new BadRequestException(`Stock insuficiente para "${product.title}". Disponible: ${product.stock}`);
+      items.push({
+        productId: item.productId,
+        storeId:   String(product.store_id ?? item.storeId),
+        title:     String(product.title ?? item.title),
+        sku:       String(product.sku ?? item.sku ?? ''),
+        price:     Number(product.price),   // ← PRECIO REAL DE LA BD, no el del cliente
+        quantity:  item.quantity,
+        image:     product.images?.[0] ?? item.image ?? null,
+      });
+    }
+    if (items.some(i => !Number.isFinite(i.price) || i.price <= 0)) {
+      throw new BadRequestException('Uno de los productos tiene un precio inválido.');
     }
 
     // 2. Validar cupón en backend (fuente de verdad — no confiar en el frontend)
@@ -125,7 +144,7 @@ export class OrdersService implements OnModuleInit {
     //    IMPORTANTE: en Shopper los precios YA incluyen IVA (19%). NO se suma
     //    IVA encima — el total de productos es (subtotal − descuento) y el IVA
     //    va contenido en el precio. Sumarlo sobrecobraría al cliente.
-    const subtotal  = dto.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const subtotal  = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     const discount  = subtotal * (discountPct / 100);
     const baseNet   = subtotal - discount;
     // Costo de envío por zona (gratis sobre el umbral). Calculado en backend
@@ -160,12 +179,12 @@ export class OrdersService implements OnModuleInit {
       );
       order = orderRows[0];
 
-      for (const item of dto.items) {
+      for (const item of items) {
         await client.query(
           `INSERT INTO order_items
              (order_id, store_id, product_id, title, sku, price, quantity, image)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [order.id, item.storeId, item.productId, item.title, item.sku, item.price, item.quantity, item.image ?? null],
+          [order.id, item.storeId, item.productId, item.title, item.sku, item.price, item.quantity, item.image],
         );
       }
 

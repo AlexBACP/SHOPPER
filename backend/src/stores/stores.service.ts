@@ -67,6 +67,15 @@ export class StoresService {
   // ── CRUD ───────────────────────────────────────────────────────────────
 
   async create(ownerId: string, dto: CreateStoreDto): Promise<Store> {
+    // Anti-abuso: solo cuentas con correo verificado pueden abrir tienda.
+    const { rows: u } = await this.pool.query<{ email_verified: boolean }>(
+      'SELECT email_verified FROM users WHERE id = $1',
+      [ownerId],
+    );
+    if (u[0] && u[0].email_verified === false) {
+      throw new ForbiddenException('Verifica tu correo antes de abrir una tienda. Te enviamos un enlace al registrarte.');
+    }
+
     // Slug: el enviado (si viene) o generado a partir del nombre, garantizando unicidad.
     const base = this.slugify(dto.slug?.trim() || dto.name);
     const slug = await this.uniqueSlug(base);

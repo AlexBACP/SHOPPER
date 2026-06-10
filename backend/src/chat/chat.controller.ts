@@ -229,14 +229,25 @@ export class ChatController {
       );
     }
 
-    if (!dto.messages || dto.messages.length === 0) {
+    if (!Array.isArray(dto.messages) || dto.messages.length === 0) {
       throw new HttpException('Se requieren mensajes.', HttpStatus.BAD_REQUEST);
     }
+    // Límites anti-abuso: ChatDto es un endpoint PÚBLICO con costo de IA. Sin esto,
+    // un solo request podría mandar miles de mensajes / megas de texto a Gemini.
+    if (dto.messages.length > 30) {
+      throw new HttpException('La conversación es demasiado larga. Reiníciala.', HttpStatus.BAD_REQUEST);
+    }
+    const totalChars = dto.messages.reduce(
+      (n, m) => n + (typeof m?.content === 'string' ? m.content.length : 0), 0);
+    if (totalChars > 12_000) {
+      throw new HttpException('El mensaje es demasiado largo.', HttpStatus.BAD_REQUEST);
+    }
+    const page = typeof dto.page === 'string' ? dto.page.slice(0, 200) : undefined;
 
     try {
       // 1. Obtener contexto real
       const context      = await getRealContext(this.pool, this.mongoClient);
-      const systemPrompt = buildSystemPrompt(context, dto.role, dto.page);
+      const systemPrompt = buildSystemPrompt(context, dto.role, page);
 
       // 2. Construir contenidos
       const contents = buildContents(dto.messages);

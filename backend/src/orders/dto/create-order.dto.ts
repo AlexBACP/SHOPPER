@@ -1,6 +1,6 @@
 import {
   IsString, IsOptional, MinLength, IsIn,
-  IsArray, ValidateNested, IsNumber, IsPositive, Min,
+  IsArray, ValidateNested, IsNumber, IsPositive, IsInt, Min, Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -22,8 +22,9 @@ export class CreateOrderItemDto {
   @IsPositive()
   price: number;
 
-  @IsNumber()
+  @IsInt()
   @Min(1)
+  @Max(1000)
   quantity: number;
 
   @IsOptional()

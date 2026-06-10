@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
   refresh_token_hash TEXT,
   oauth_provider     TEXT,
   oauth_id           TEXT,
+  email_verified          BOOLEAN NOT NULL DEFAULT true,  -- el registro por email pone false en código
+  email_verify_token_hash TEXT,
+  email_verify_expires    TIMESTAMPTZ,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

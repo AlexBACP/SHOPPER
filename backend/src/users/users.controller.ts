@@ -54,7 +54,7 @@ export class UsersController {
     @Body() dto: UpdateRoleDto,
     @CurrentUser() requester: any,
   ) {
-    return this.usersService.updateRole(id, dto.role, requester.id);
+    return this.usersService.updateRole(id, dto.role, requester.id, requester.role);
   }
 
   // DELETE /users/:id → invalida la sesión del usuario
@@ -63,6 +63,6 @@ export class UsersController {
   @Delete(':id')
   @HttpCode(200)
   deactivate(@Param('id') id: string, @CurrentUser() requester: any) {
-    return this.usersService.deactivate(id, requester.id);
+    return this.usersService.deactivate(id, requester.id, requester.role);
   }
 }
