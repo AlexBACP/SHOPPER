@@ -61,6 +61,7 @@ function getNavGroups(role: Role): NavGroup[] {
       {
         title: 'Administración',
         items: [
+          { label: 'Dashboard',   href: '/admin',              icon: LayoutDashboard },
           { label: 'Tiendas',     href: '/admin/stores',       icon: Store },
           { label: 'Usuarios',    href: '/admin/stores/users',  icon: Users },
         ],

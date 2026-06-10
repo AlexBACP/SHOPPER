@@ -23,6 +23,7 @@ import { SearchModule }   from './search/search.module';
 import { ReviewsModule }  from './reviews/reviews.module';
 import { CouponsModule }  from './coupons/coupons.module';
 import { AiModule }       from './ai/ai.module';
+import { AdminModule }    from './admin/admin.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AiModule }       from './ai/ai.module';
     ReviewsModule,
     CouponsModule,
     AiModule,
+    AdminModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
