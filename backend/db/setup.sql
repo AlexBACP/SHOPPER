@@ -137,6 +137,18 @@ CREATE TABLE IF NOT EXISTS password_resets (
 CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_resets(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_resets_expires  ON password_resets(expires_at);
 
+-- ── Configuración de plataforma (super_admin) ───────────────
+CREATE TABLE IF NOT EXISTS platform_settings (
+  key        TEXT        PRIMARY KEY,
+  value      TEXT        NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+INSERT INTO platform_settings (key, value) VALUES
+  ('free_shipping_threshold', '150000'),
+  ('default_commission_pct',  '8'),
+  ('featured_coupon',         '')
+ON CONFLICT (key) DO NOTHING;
+
 -- ── TRIGGERS: updated_at automático ─────────────────────
 CREATE OR REPLACE FUNCTION trigger_set_updated_at()
 RETURNS TRIGGER AS $$

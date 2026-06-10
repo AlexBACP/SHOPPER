@@ -64,8 +64,12 @@ const ZONA_ESPECIAL = new Set([
  * Calcula el costo de envío según el departamento de destino y el
  * subtotal del pedido. Gratis si el subtotal supera el umbral.
  */
-export function calcShippingCost(dept: string | null | undefined, subtotal: number): number {
-  if (subtotal >= FREE_SHIPPING_THRESHOLD) return 0;
+export function calcShippingCost(
+  dept: string | null | undefined,
+  subtotal: number,
+  threshold: number = FREE_SHIPPING_THRESHOLD,   // configurable por el super_admin
+): number {
+  if (subtotal >= threshold) return 0;
   const d = (dept ?? '').trim();
   if (ZONA_ESPECIAL.has(d))  return TARIFA_ESPECIAL;
   if (ZONA_PRINCIPAL.has(d)) return TARIFA_PRINCIPAL;

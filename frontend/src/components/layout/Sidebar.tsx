@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Store, Package, ShoppingBag,
   Users, BarChart3, ChevronRight,
-  ShoppingCart, User, Ticket,
+  ShoppingCart, User, Ticket, Settings,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useNotificacionesStore } from '@/store/notifications.store';
@@ -66,6 +66,10 @@ function getNavGroups(role: Role): NavGroup[] {
           { label: 'Productos',   href: '/admin/products',      icon: Package },
           { label: 'Usuarios',    href: '/admin/stores/users',  icon: Users },
           { label: 'Cupones',     href: '/admin/coupons',       icon: Ticket },
+          // Solo el super_admin ve la configuración de plataforma
+          ...(role === 'super_admin'
+            ? [{ label: 'Configuración', href: '/admin/settings', icon: Settings }]
+            : []),
         ],
       },
     ];

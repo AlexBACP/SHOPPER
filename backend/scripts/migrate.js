@@ -29,6 +29,17 @@ const PASOS = [
   // ── 2FA (TOTP) ──────────────────────────────────────────────────────────
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret  TEXT`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT false`,
+  // ── Configuración de plataforma (super_admin) ───────────────────────────
+  `CREATE TABLE IF NOT EXISTS platform_settings (
+     key        TEXT        PRIMARY KEY,
+     value      TEXT        NOT NULL,
+     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+  `INSERT INTO platform_settings (key, value) VALUES
+     ('free_shipping_threshold', '150000'),
+     ('default_commission_pct',  '8'),
+     ('featured_coupon',         '')
+   ON CONFLICT (key) DO NOTHING`,
   // ── Columnas base de orders que pueden faltar ───────────────────────────
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_name    TEXT`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address TEXT`,

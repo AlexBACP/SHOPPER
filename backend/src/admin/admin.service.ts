@@ -142,4 +142,29 @@ export class AdminService {
     try { oid = new ObjectId(id); } catch { throw new BadRequestException('ID inválido'); }
     await this.mongo.db().collection('products').deleteOne({ _id: oid });
   }
+
+  // ── Configuración de plataforma (solo super_admin) ───────────
+
+  private readonly SETTING_KEYS = ['free_shipping_threshold', 'default_commission_pct', 'featured_coupon'];
+
+  async getSettings(): Promise<Record<string, string>> {
+    const { rows } = await this.pool.query<{ key: string; value: string }>(
+      'SELECT key, value FROM platform_settings',
+    );
+    const out: Record<string, string> = {};
+    rows.forEach(r => { out[r.key] = r.value; });
+    return out;
+  }
+
+  async updateSettings(patch: Record<string, string>): Promise<Record<string, string>> {
+    for (const [k, v] of Object.entries(patch ?? {})) {
+      if (!this.SETTING_KEYS.includes(k)) continue;
+      await this.pool.query(
+        `INSERT INTO platform_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [k, String(v)],
+      );
+    }
+    return this.getSettings();
+  }
 }

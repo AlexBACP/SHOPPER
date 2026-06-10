@@ -149,7 +149,16 @@ export class OrdersService implements OnModuleInit {
     const baseNet   = subtotal - discount;
     // Costo de envío por zona (gratis sobre el umbral). Calculado en backend
     // como fuente de verdad — no confiamos en lo que mande el frontend.
-    const shippingCost = calcShippingCost(dto.shipping_dept, subtotal);
+    // El umbral de envío gratis lo configura el super_admin (con fallback al default).
+    let umbralEnvio: number | undefined;
+    try {
+      const { rows: cfg } = await this.pool.query<{ value: string }>(
+        `SELECT value FROM platform_settings WHERE key = 'free_shipping_threshold'`,
+      );
+      const n = Number(cfg[0]?.value);
+      if (Number.isFinite(n) && n > 0) umbralEnvio = n;
+    } catch { /* la tabla aún no existe (sin migrar) → usa el default del código */ }
+    const shippingCost = calcShippingCost(dto.shipping_dept, subtotal, umbralEnvio);
     const total     = baseNet + shippingCost;
 
     // 4. Transacción PostgreSQL — orden + items atómicos
